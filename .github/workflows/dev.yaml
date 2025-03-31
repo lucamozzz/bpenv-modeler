@@ -1,4 +1,4 @@
-name: Build develop
+name: Test dev branch
 
 on:
   push:
@@ -10,10 +10,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Test 
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: npm ci
-      - run: npm run test
+      - name: Run tests
+        run: npm run test
