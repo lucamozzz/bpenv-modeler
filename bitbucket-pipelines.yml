@@ -1,0 +1,26 @@
+image: node:16
+
+pipelines:
+  branches:
+    - main:
+        - parallel:
+            - step:
+                name: Lint
+                script:
+                  - npm install eslint
+                  - npx eslint .
+                caches:
+                  - node
+        - step:
+            name: Deploy to Dockerhub
+            script:
+              - echo "Deploying to production..."
+              # Add your deployment commands here
+    - dev:
+        - step:
+            name: Test
+            caches:
+              - node
+            script:
+              - npm install
+              - npm test
