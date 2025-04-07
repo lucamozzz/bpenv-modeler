@@ -1,29 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import Map from 'ol/Map.js';
 import View from 'ol/View.js';
 import { useGeographic } from 'ol/proj';
-import { OSM, Vector as VectorSource } from 'ol/source.js';
-import { Tile as TileLayer, Vector as VectorLayer } from 'ol/layer.js';
-import { Draw, Snap, Select } from "ol/interaction";
-import LineString from 'ol/geom/LineString.js';
-import Polygon from 'ol/geom/Polygon.js';
+import { OSM } from 'ol/source.js';
+import { Tile as TileLayer } from 'ol/layer.js';
 import Feature from 'ol/Feature.js';
-import { click } from 'ol/events/condition.js';
-import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style.js';
-import { Coordinate } from 'ol/coordinate';
-import Sidebar from './Sidebar';
+import Geometry from 'ol/geom/Geometry.js';
+import Polygon from 'ol/geom/Polygon.js';
+import LineString from 'ol/geom/LineString.js';
+import Sidebar from './components/Sidebar';
+import PolygonManager from './components/PolygonManager';
+import EdgeManager from './components/EdgeManager';
+import SelectionManager from './components/SelectionManager';
 import './style.css';
 
 // Definizione delle interfacce
-interface PlaceAttributes {
-  [key: string]: string;
-}
-
-interface EdgeAttributes {
-  [key: string]: string;
-}
-
 interface Element {
   id: string;
   type: 'place' | 'edge';
@@ -32,65 +24,28 @@ interface Element {
   attributes: Record<string, string>;
 }
 
-// Definizione degli stili
-const placeStyle = new Style({
-  fill: new Fill({
-    color: 'rgba(255, 255, 255, 0.2)'
-  }),
-  stroke: new Stroke({
-    color: 'red',
-    width: 2
-  }),
-  image: new CircleStyle({
-    radius: 7,
-    fill: new Fill({
-      color: '#ffcc33'
-    })
-  })
-});
+// Storico delle azioni per la funzionalità di undo
+interface Action {
+  type: 'add_place' | 'add_edge' | 'delete_place' | 'delete_edge';
+  feature: Feature<Geometry>;
+}
 
-// Stile per gli archi - più visibile con colore blu e spessore maggiore
-const edgeStyle = new Style({
-  stroke: new Stroke({
-    color: 'rgba(0, 0, 255, 0.8)', // Blu più opaco per maggiore visibilità
-    width: 5, // Spessore maggiore
-    lineCap: 'round', // Estremità arrotondate
-    lineJoin: 'round' // Giunzioni arrotondate
-  })
-});
+const actionHistory: Action[] = [];
 
-const selectedStyle = new Style({
-  fill: new Fill({
-    color: 'rgba(255, 255, 0, 0.3)'
-  }),
-  stroke: new Stroke({
-    color: '#ffcc33',
-    width: 3
-  }),
-  image: new CircleStyle({
-    radius: 7,
-    fill: new Fill({
-      color: '#ffcc33'
-    })
-  })
-});
+// Funzione per aggiungere un'azione alla cronologia
+function addToHistory(type: string, feature: Feature<Geometry>): void {
+  actionHistory.push({
+    type: type as 'add_place' | 'add_edge' | 'delete_place' | 'delete_edge',
+    feature: feature
+  });
+  console.log('Azione aggiunta alla cronologia:', type, feature.get('id'));
+  console.log('Dimensione cronologia:', actionHistory.length);
+  
+  // Aggiorna lo stato dell'interfaccia dopo ogni azione
+  updateUIState();
+}
 
-// Creazione delle sorgenti e dei layer
-const placeSource = new VectorSource();
-const edgeSource = new VectorSource();
-
-const placeLayer = new VectorLayer({
-  source: placeSource,
-  style: placeStyle,
-  zIndex: 1
-});
-
-const edgeLayer = new VectorLayer({
-  source: edgeSource,
-  style: edgeStyle,
-  zIndex: 2 // Assicura che gli archi siano sopra i poligoni
-});
-
+// Creazione del layer di base (mappa OSM)
 const raster = new TileLayer({
   source: new OSM(),
   zIndex: 0
@@ -100,7 +55,7 @@ useGeographic();
 
 // Creazione della mappa
 const map = new Map({
-  layers: [raster, placeLayer, edgeLayer], // Ordine importante: gli archi devono essere sopra i poligoni
+  layers: [raster],
   target: 'map',
   view: new View({
     center: [13.068307772123394, 43.139407493133405],
@@ -111,198 +66,128 @@ const map = new Map({
   }),
 });
 
-// Interazioni per il disegno
-let drawInteraction: Draw | null = null;
-let selectInteraction: Select | null = null;
-let selectedPlaces: Feature[] = [];
+// Stato dell'interfaccia utente
+let uiState = {
+  canDrawEdge: false,
+  hasSelectedElement: false
+};
 
-// Interazione per lo snap
-const snapInteraction = new Snap({
-  source: placeSource
-});
-
-map.addInteraction(snapInteraction);
-
-// Funzione per calcolare il centroide di un poligono
-function calculateCentroid(polygon: Polygon): Coordinate {
-  const coordinates = polygon.getCoordinates()[0];
-  let x = 0;
-  let y = 0;
+// Funzione per aggiornare lo stato dell'interfaccia
+function updateUIState(): void {
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  const selectionManager = (window as any).selectionManager;
   
-  // Calcola la media delle coordinate
-  for (let i = 0; i < coordinates.length; i++) {
-    x += coordinates[i][0];
-    y += coordinates[i][1];
-  }
+  if (!polygonManager || !edgeManager || !selectionManager) return;
   
-  return [x / coordinates.length, y / coordinates.length];
+  // Aggiorna lo stato
+  uiState = {
+    canDrawEdge: polygonManager.getPolygonCount() >= 2,
+    hasSelectedElement: selectionManager.hasSelectedElement()
+  };
+  
+  // Aggiorna la sidebar
+  updateSidebar();
 }
 
-// Funzione per attivare la modalità di disegno dei poligoni
-function activateDrawPolygon(): void {
-  // Rimuovi interazioni precedenti
-  if (drawInteraction) {
-    map.removeInteraction(drawInteraction);
-  }
-  if (selectInteraction) {
-    map.removeInteraction(selectInteraction);
-  }
+// Funzione per aggiornare la sidebar
+function updateSidebar(): void {
+  const sidebarRoot = (window as any).sidebarRoot;
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  const selectionManager = (window as any).selectionManager;
   
-  // Crea nuova interazione per disegnare poligoni
-  drawInteraction = new Draw({
-    source: placeSource,
-    type: 'Polygon'
-  });
+  if (!sidebarRoot || !polygonManager || !edgeManager || !selectionManager) return;
   
-  // Aggiungi interazione alla mappa
-  map.addInteraction(drawInteraction);
-  
-  // Gestisci l'evento di fine disegno
-  drawInteraction.on('drawend', function (event) {
-    const feature = event.feature;
-    feature.set('type', 'place');
-    feature.set('id', 'place_' + Date.now());
-    feature.set('attributes', {});
-    
-    const geometry = feature.getGeometry() as Polygon;
-    const coordinates = geometry.getCoordinates()[0];
-    console.log('Drawn polygon coordinates:', coordinates);
-    
-    // Aggiorna il pannello degli attributi
-    updateSidebarElements();
-  });
+  // Renderizza nuovamente la sidebar con lo stato aggiornato
+  sidebarRoot.render(
+    <React.StrictMode>
+      <Sidebar 
+        onDrawPolygon={() => polygonManager.activateDrawPolygon()}
+        onDrawEdge={() => edgeManager.activateDrawEdge()}
+        onSelect={() => selectionManager.activateSelection()}
+        onDelete={() => selectionManager.deleteSelectedElement()}
+        onUndo={undoLastAction}
+        onExportModel={exportModel}
+        canDrawEdge={uiState.canDrawEdge}
+        hasSelectedElement={uiState.hasSelectedElement}
+        onRenameElement={renameElement}
+      />
+    </React.StrictMode>
+  );
 }
 
-// Funzione per attivare la modalità di disegno degli archi
-function activateDrawEdge(): void {
-  // Rimuovi interazioni precedenti
-  if (drawInteraction) {
-    map.removeInteraction(drawInteraction);
+// Funzione per aggiornare gli elementi nella sidebar
+function updateSidebarElements(): void {
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  
+  if (!polygonManager || !edgeManager) return;
+  
+  const placeFeatures = polygonManager.getPlaceSource().getFeatures();
+  const edgeFeatures = edgeManager.getEdgeSource().getFeatures();
+  
+  interface PlaceElement extends Element {
+    type: 'place';
   }
-  if (selectInteraction) {
-    map.removeInteraction(selectInteraction);
-  }
-  
-  // Crea nuova interazione per selezionare poligoni
-  selectInteraction = new Select({
-    condition: click,
-    layers: [placeLayer],
-    style: selectedStyle
-  });
-  
-  // Aggiungi interazione alla mappa
-  map.addInteraction(selectInteraction);
-  
-  // Resetta la selezione
-  selectedPlaces = [];
-  
-  // Gestisci l'evento di selezione
-  selectInteraction.on('select', function(e) {
-    const selectedFeatures = e.selected;
-    
-    if (selectedFeatures.length > 0) {
-      const feature = selectedFeatures[0];
-      
-      if (feature.get('type') === 'place') {
-        if (selectedPlaces.length === 0) {
-          // Primo poligono selezionato
-          selectedPlaces.push(feature);
-          console.log('Primo poligono selezionato:', feature.get('id'));
-        } else if (selectedPlaces.length === 1 && selectedPlaces[0] !== feature) {
-          // Secondo poligono selezionato, crea l'arco
-          selectedPlaces.push(feature);
-          console.log('Secondo poligono selezionato:', feature.get('id'));
-          
-          // Crea l'arco tra i due poligoni
-          createEdge(selectedPlaces[0], selectedPlaces[1]);
-          
-          // Resetta la selezione
-          selectedPlaces = [];
-          selectInteraction?.getFeatures().clear();
-        }
-      }
-    }
-  });
-}
 
-// Funzione per creare un arco tra due poligoni
-function createEdge(source: Feature, target: Feature): void {
-  try {
-    console.log('Creazione arco tra:', source.get('id'), 'e', target.get('id'));
-    
-    // Ottieni i centroidi dei poligoni
-    const sourceGeom = source.getGeometry() as Polygon;
-    const targetGeom = target.getGeometry() as Polygon;
-    
-    // Calcola i centroidi usando la funzione dedicata
-    const sourceCoords = calculateCentroid(sourceGeom);
-    const targetCoords = calculateCentroid(targetGeom);
-    
-    console.log('Coordinate arco - origine:', sourceCoords, 'destinazione:', targetCoords);
-    
-    // Crea un ID univoco basato sui poligoni di origine e destinazione
-    const sourceId = source.get('id');
-    const targetId = target.get('id');
-    const edgeId = 'edge_' + sourceId + '_' + targetId;
-    
-    // Verifica se esiste già un arco con lo stesso ID
-    const existingEdges = edgeSource.getFeatures();
-    for (let i = 0; i < existingEdges.length; i++) {
-      if (existingEdges[i].get('id') === edgeId) {
-        console.log('Arco già esistente tra questi poligoni');
-        return; // Esci dalla funzione se l'arco esiste già
-      }
-    }
-    
-    // Crea una feature LineString
-    const lineString = new LineString([sourceCoords, targetCoords]);
-    console.log('LineString creata:', lineString.getCoordinates());
-    
-    const edgeFeature = new Feature({
-      geometry: lineString,
+  interface EdgeElement extends Element {
+    type: 'edge';
+    source: string;
+    target: string;
+  }
+
+  interface SidebarElement {
+    id: string;
+    attributes: Record<string, string>;
+  }
+
+  interface PlaceElement extends SidebarElement {
+    type: 'place';
+  }
+
+  interface EdgeElement extends SidebarElement {
+    type: 'edge';
+    source: string;
+    target: string;
+  }
+
+  const elements: (PlaceElement | EdgeElement)[] = [
+    ...placeFeatures.map((feature: { get: (arg0: string) => string | Record<string, string>; }): PlaceElement => ({
+      id: feature.get('id') as string,
+      type: 'place',
+      attributes: feature.get('attributes') as Record<string, string> || {}
+    })),
+    ...edgeFeatures.map((feature: { get: (arg0: string) => string | Record<string, string>; }): EdgeElement => ({
+      id: feature.get('id') as string,
       type: 'edge',
-      id: edgeId,
-      source: sourceId,
-      target: targetId,
-      attributes: {}
-    });
-    
-    // Imposta esplicitamente lo stile per questa feature
-    edgeFeature.setStyle(new Style({
-      stroke: new Stroke({
-        color: 'rgba(0, 0, 255, 0.8)', // Blu più opaco per maggiore visibilità
-        width: 5, // Spessore maggiore
-        lineCap: 'round',
-        lineJoin: 'round'
-      })
-    }));
-    
-    // Aggiungi la feature al layer degli archi
-    edgeSource.addFeature(edgeFeature);
-    console.log('Arco creato tra:', sourceId, 'e', targetId);
-    console.log('Numero di archi nel layer:', edgeSource.getFeatures().length);
-    
-    // Forza il refresh del layer
-    edgeLayer.changed();
-    
-    // Verifica che l'arco sia stato aggiunto
-    console.log('Archi nel layer dopo aggiunta:', edgeSource.getFeatures().length);
-    console.log('Arco aggiunto:', edgeFeature.getGeometry()?.getCoordinates() || 'Geometria non disponibile');
-
-    // Aggiorna il pannello degli attributi
-    updateSidebarElements();
-  } catch (error) {
-    console.error('Errore nella creazione dell\'arco:', error);
+      source: feature.get('source') as string,
+      target: feature.get('target') as string,
+      attributes: feature.get('attributes') as Record<string, string> || {}
+    }))
+  ];
+  
+  // Aggiorna gli elementi nella sidebar
+  if (typeof (window as any).updateSidebarElements === 'function') {
+    (window as any).updateSidebarElements(elements);
   }
+  
+  // Aggiorna lo stato dell'interfaccia dopo ogni aggiornamento degli elementi
+  updateUIState();
 }
 
 // Funzione per aggiungere un attributo a un elemento
 function addAttribute(elementId: string, name: string, value: string): void {
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  
+  if (!polygonManager || !edgeManager) return;
+  
   // Cerca l'elemento tra i poligoni e gli archi
-  let feature: Feature | null = null;
+  let feature: Feature<Geometry> | null = null;
   
   // Cerca tra i poligoni
-  const placeFeatures = placeSource.getFeatures();
+  const placeFeatures = polygonManager.getPlaceSource().getFeatures();
   for (let i = 0; i < placeFeatures.length; i++) {
     if (placeFeatures[i].get('id') === elementId) {
       feature = placeFeatures[i];
@@ -312,7 +197,7 @@ function addAttribute(elementId: string, name: string, value: string): void {
   
   // Se non trovato, cerca tra gli archi
   if (!feature) {
-    const edgeFeatures = edgeSource.getFeatures();
+    const edgeFeatures = edgeManager.getEdgeSource().getFeatures();
     for (let i = 0; i < edgeFeatures.length; i++) {
       if (edgeFeatures[i].get('id') === elementId) {
         feature = edgeFeatures[i];
@@ -334,11 +219,16 @@ function addAttribute(elementId: string, name: string, value: string): void {
 
 // Funzione per rimuovere un attributo da un elemento
 function removeAttribute(elementId: string, name: string): void {
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  
+  if (!polygonManager || !edgeManager) return;
+  
   // Cerca l'elemento tra i poligoni e gli archi
-  let feature: Feature | null = null;
+  let feature: Feature<Geometry> | null = null;
   
   // Cerca tra i poligoni
-  const placeFeatures = placeSource.getFeatures();
+  const placeFeatures = polygonManager.getPlaceSource().getFeatures();
   for (let i = 0; i < placeFeatures.length; i++) {
     if (placeFeatures[i].get('id') === elementId) {
       feature = placeFeatures[i];
@@ -348,7 +238,7 @@ function removeAttribute(elementId: string, name: string): void {
   
   // Se non trovato, cerca tra gli archi
   if (!feature) {
-    const edgeFeatures = edgeSource.getFeatures();
+    const edgeFeatures = edgeManager.getEdgeSource().getFeatures();
     for (let i = 0; i < edgeFeatures.length; i++) {
       if (edgeFeatures[i].get('id') === elementId) {
         feature = edgeFeatures[i];
@@ -368,11 +258,30 @@ function removeAttribute(elementId: string, name: string): void {
   }
 }
 
+// Funzione per rinominare un elemento
+function renameElement(newId: string): void {
+  const selectionManager = (window as any).selectionManager;
+  
+  if (!selectionManager) return;
+  
+  const success = selectionManager.renameSelectedElement(newId);
+  
+  if (success) {
+    // Aggiorna la sidebar
+    updateSidebarElements();
+  }
+}
+
 // Funzione per esportare il modello in JSON
 function exportModel(): void {
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  
+  if (!polygonManager || !edgeManager) return;
+  
   // Ottieni tutte le feature
-  const placeFeatures = placeSource.getFeatures();
-  const edgeFeatures = edgeSource.getFeatures();
+  const placeFeatures = polygonManager.getPlaceSource().getFeatures();
+  const edgeFeatures = edgeManager.getEdgeSource().getFeatures();
   
   // Crea l'oggetto modello
   const model = {
@@ -381,29 +290,35 @@ function exportModel(): void {
   };
   
   // Aggiungi i poligoni
-  placeFeatures.forEach(feature => {
-    const geometry = feature.getGeometry() as Polygon;
-    const coordinates = geometry.getCoordinates()[0];
-    
-    model.places.push({
-      id: feature.get('id'),
-      coordinates: coordinates,
-      attributes: feature.get('attributes') || {}
-    });
+  placeFeatures.forEach((feature: Feature<Geometry>) => {
+    const geometry = feature.getGeometry();
+    if (geometry && geometry instanceof Polygon) {
+      const polygonGeometry = geometry as Polygon;
+      const coordinates = polygonGeometry.getCoordinates()[0];
+      
+      model.places.push({
+        id: feature.get('id') as string,
+        coordinates: coordinates,
+        attributes: feature.get('attributes') as Record<string, string> || {}
+      });
+    }
   });
   
   // Aggiungi gli archi
-  edgeFeatures.forEach(feature => {
-    const geometry = feature.getGeometry() as LineString;
-    const coordinates = geometry.getCoordinates();
-    
-    model.edges.push({
-      id: feature.get('id'),
-      source: feature.get('source'),
-      target: feature.get('target'),
-      coordinates: coordinates,
-      attributes: feature.get('attributes') || {}
-    });
+  edgeFeatures.forEach((feature: Feature<Geometry>) => {
+    const geometry = feature.getGeometry();
+    if (geometry && geometry instanceof LineString) {
+      const lineStringGeometry = geometry as LineString;
+      const coordinates = lineStringGeometry.getCoordinates();
+      
+      model.edges.push({
+        id: feature.get('id') as string,
+        source: feature.get('source') as string,
+        target: feature.get('target') as string,
+        coordinates: coordinates,
+        attributes: feature.get('attributes') as Record<string, string> || {}
+      });
+    }
   });
   
   // Converti in JSON
@@ -422,35 +337,56 @@ function exportModel(): void {
   URL.revokeObjectURL(url);
 }
 
-// Funzione per aggiornare gli elementi nella sidebar
-function updateSidebarElements(): void {
-  const placeFeatures = placeSource.getFeatures();
-  const edgeFeatures = edgeSource.getFeatures();
-  
-  const elements: Element[] = [
-    ...placeFeatures.map(feature => ({
-      id: feature.get('id'),
-      type: 'place' as const,
-      attributes: feature.get('attributes') || {}
-    })),
-    ...edgeFeatures.map(feature => ({
-      id: feature.get('id'),
-      type: 'edge' as const,
-      source: feature.get('source'),
-      target: feature.get('target'),
-      attributes: feature.get('attributes') || {}
-    }))
-  ];
-  
-  // Aggiorna gli elementi nella sidebar
-  if (typeof (window as any).updateSidebarElements === 'function') {
-    (window as any).updateSidebarElements(elements);
+// Funzione per annullare l'ultima azione
+function undoLastAction(): void {
+  if (actionHistory.length === 0) {
+    console.log('Nessuna azione da annullare');
+    return;
   }
+  
+  const lastAction = actionHistory.pop();
+  if (!lastAction) return;
+  
+  const polygonManager = (window as any).polygonManager;
+  const edgeManager = (window as any).edgeManager;
+  
+  if (!polygonManager || !edgeManager) return;
+  
+  console.log('Annullamento azione:', lastAction.type);
+  
+  switch (lastAction.type) {
+    case 'add_place':
+      polygonManager.getPlaceSource().removeFeature(lastAction.feature);
+      break;
+    case 'add_edge':
+      edgeManager.getEdgeSource().removeFeature(lastAction.feature);
+      break;
+    case 'delete_place':
+      polygonManager.getPlaceSource().addFeature(lastAction.feature);
+      break;
+    case 'delete_edge':
+      edgeManager.getEdgeSource().addFeature(lastAction.feature);
+      break;
+  }
+  
+  // Aggiorna la sidebar
+  updateSidebarElements();
 }
 
-// Esponi le funzioni globalmente
+// Inizializza i manager
+const polygonManager = new PolygonManager(map, updateSidebarElements, addToHistory);
+const edgeManager = new EdgeManager(map, polygonManager.getPlaceSource(), updateSidebarElements, addToHistory);
+const selectionManager = new SelectionManager(map, polygonManager, edgeManager, updateSidebarElements);
+
+// Esponi i manager e le funzioni globalmente
+(window as any).polygonManager = polygonManager;
+(window as any).edgeManager = edgeManager;
+(window as any).selectionManager = selectionManager;
 (window as any).addAttribute = addAttribute;
 (window as any).removeAttribute = removeAttribute;
+(window as any).renameElement = renameElement;
+(window as any).undoLastAction = undoLastAction;
+(window as any).updateUIState = updateUIState;
 
 // Crea un div per la sidebar
 const sidebarContainer = document.createElement('div');
@@ -459,21 +395,24 @@ document.body.appendChild(sidebarContainer);
 
 // Renderizza la sidebar
 const sidebarRoot = ReactDOM.createRoot(sidebarContainer);
-sidebarRoot.render(
-  <React.StrictMode>
-    <Sidebar 
-      onDrawPolygon={activateDrawPolygon} 
-      onDrawEdge={activateDrawEdge} 
-      onExportModel={exportModel}
-    />
-  </React.StrictMode>
-);
+(window as any).sidebarRoot = sidebarRoot;
+
+// Inizializza la sidebar
+updateSidebar();
 
 // Inizializza con la modalità di disegno dei poligoni
-activateDrawPolygon();
+polygonManager.activateDrawPolygon();
 
 // Evento click sulla mappa per debug
 map.on('click', function (evt) {
   const coordinates = evt.coordinate;
   console.log('Click coordinates:', coordinates);
 });
+
+// Aggiungi listener per aggiornare lo stato dell'interfaccia quando la mappa cambia
+map.on('change', function() {
+  updateUIState();
+});
+
+// Aggiorna lo stato dell'interfaccia ogni secondo per assicurarsi che i bottoni siano sempre aggiornati
+setInterval(updateUIState, 1000);

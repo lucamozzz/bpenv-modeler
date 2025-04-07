@@ -1,0 +1,104 @@
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 100vh;
+  background-color: white;
+  padding: 15px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.control-panel,
+.attribute-panel {
+  margin-bottom: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  padding: 15px;
+  background-color: #f9f9f9;
+}
+
+.attributes-container {
+  margin-top: 10px;
+}
+
+.btn-group {
+  display: flex;
+}
+
+.btn-group .btn {
+  flex: 1;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Due colonne di uguale larghezza */
+  gap: 10px; /* Spazio tra i pulsanti */
+  width: 100%; /* Assicura che la griglia riempia la larghezza disponibile */
+}
+
+.grid-container .btn-wide {
+  grid-column: span 2; /* Fa sì che il pulsante occupi due colonne */
+}
+
+.btn {
+  width: 100%; /* Assicura che i pulsanti riempiano la cella della griglia */
+  margin-bottom: 5px;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.element-id-editor {
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f5f5f5;
+}
+
+.element-id-editor label {
+  font-weight: bold;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.attributes-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 15px;
+}
+
+.attributes-table th, 
+.attributes-table td {
+  padding: 8px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.attributes-table th {
+  background-color: #f2f2f2;
+}
+
+.element-type-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+.element-type-place {
+  background-color: #e6f7ff;
+  color: #0066cc;
+}
+
+.element-type-edge {
+  background-color: #fff3e6;
+  color: #cc6600;
+}

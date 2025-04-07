@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import "./Sidebar.css";
 
-
-
 interface SidebarProps {
   onDrawPolygon: () => void;
   onDrawEdge: () => void;
+  onSelect: () => void;
+  onDelete: () => void;
+  onUndo: () => void;
   onExportModel: () => void;
+  canDrawEdge: boolean;
+  hasSelectedElement: boolean;
+  onRenameElement: (newId: string) => void;
 }
 
 interface Attribute {
@@ -22,12 +26,24 @@ interface Element {
   attributes: Record<string, string>;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onDrawPolygon, onDrawEdge, onExportModel }) => {
-  const [activeButton, setActiveButton] = useState<'polygon' | 'edge' | null>('polygon');
+const Sidebar: React.FC<SidebarProps> = ({ 
+  onDrawPolygon, 
+  onDrawEdge,
+  onSelect,
+  onDelete,
+  onUndo,
+  onExportModel,
+  canDrawEdge,
+  hasSelectedElement,
+  onRenameElement
+}) => {
+  const [activeButton, setActiveButton] = useState<'polygon' | 'edge' | 'select' | null>('polygon');
   const [elements, setElements] = useState<Element[]>([]);
   const [selectedElement, setSelectedElement] = useState<Element | null>(null);
   const [newAttributeName, setNewAttributeName] = useState('');
   const [newAttributeValue, setNewAttributeValue] = useState('');
+  const [newElementId, setNewElementId] = useState('');
+  const [pendingRename, setPendingRename] = useState<{id: string, newId: string} | null>(null);
 
   // Funzione per aggiornare gli elementi dalla mappa
   const updateElements = (newElements: Element[]) => {
@@ -38,6 +54,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onDrawPolygon, onDrawEdge, onExportMo
       const updatedSelectedElement = newElements.find(el => el.id === selectedElement.id);
       if (updatedSelectedElement) {
         setSelectedElement(updatedSelectedElement);
+        setNewElementId(updatedSelectedElement.id);
+      } else {
+        // Se l'elemento selezionato non esiste più, deselezionalo
+        setSelectedElement(null);
+        setNewElementId('');
       }
     }
   };
@@ -47,25 +68,77 @@ const Sidebar: React.FC<SidebarProps> = ({ onDrawPolygon, onDrawEdge, onExportMo
     (window as any).updateSidebarElements = updateElements;
   }, []);
 
+  // Effetto per applicare la rinomina in sospeso quando cambia la selezione
+  useEffect(() => {
+    if (pendingRename) {
+      console.log('Applicazione rinomina in sospeso:', pendingRename);
+      onRenameElement(pendingRename.newId);
+      setPendingRename(null);
+    }
+  }, [pendingRename, onRenameElement]);
+
   const handleDrawPolygon = () => {
+    // Applica eventuali rinomina in sospeso prima di cambiare modalità
+    applyPendingRename();
+    
     setActiveButton('polygon');
     onDrawPolygon();
   };
 
   const handleDrawEdge = () => {
+    // Applica eventuali rinomina in sospeso prima di cambiare modalità
+    applyPendingRename();
+    
     setActiveButton('edge');
     onDrawEdge();
   };
 
+  const handleSelect = () => {
+    // Applica eventuali rinomina in sospeso prima di cambiare modalità
+    applyPendingRename();
+    
+    setActiveButton('select');
+    onSelect();
+  };
+
+  const handleDelete = () => {
+    // Applica eventuali rinomina in sospeso prima di eliminare
+    applyPendingRename();
+    
+    onDelete();
+  };
+
+  const handleUndo = () => {
+    // Applica eventuali rinomina in sospeso prima di annullare
+    applyPendingRename();
+    
+    onUndo();
+  };
+
+  // Funzione per applicare la rinomina in sospeso
+  const applyPendingRename = () => {
+    if (selectedElement && newElementId && newElementId !== selectedElement.id) {
+      console.log('Applicazione rinomina prima del cambio:', selectedElement.id, '->', newElementId);
+      onRenameElement(newElementId);
+    }
+  };
+
   const handleElementSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    // Applica eventuali rinomina in sospeso prima di cambiare selezione
+    applyPendingRename();
+    
     const elementId = event.target.value;
     if (!elementId) {
       setSelectedElement(null);
+      setNewElementId('');
       return;
     }
 
     const element = elements.find(el => el.id === elementId) || null;
     setSelectedElement(element);
+    if (element) {
+      setNewElementId(element.id);
+    }
   };
 
   const handleAddAttribute = () => {
@@ -89,24 +162,57 @@ const Sidebar: React.FC<SidebarProps> = ({ onDrawPolygon, onDrawEdge, onExportMo
     }
   };
 
+  const handleRenameElement = () => {
+    if (!selectedElement || !newElementId.trim() || newElementId === selectedElement.id) return;
+    
+    // Applica immediatamente la rinomina
+    onRenameElement(newElementId);
+  };
+
   return (
     <div className="sidebar">
       <h4>BPEnv Modeler</h4>
       
       <div className="control-panel">
         <h5>Strumenti di disegno</h5>
-        <div className="btn-group w-100 mb-3">
+        <div className="grid-container">
           <button 
             className={`btn ${activeButton === 'polygon' ? 'btn-primary' : 'btn-outline-primary'}`}
             onClick={handleDrawPolygon}
           >
             Disegna Poligono
           </button>
+         
           <button 
             className={`btn ${activeButton === 'edge' ? 'btn-primary' : 'btn-outline-primary'}`}
             onClick={handleDrawEdge}
+            disabled={!canDrawEdge}
+            title={!canDrawEdge ? "Servono almeno due poligoni per disegnare un arco" : ""}
           >
             Disegna Arco
+          </button>
+
+          <button 
+            className={`btn ${activeButton === 'select' ? 'btn-primary' : 'btn-outline-primary'} btn-wide`}
+            onClick={handleSelect}
+          >
+            Seleziona Elemento
+          </button>
+
+          <button 
+            className="btn btn-danger"
+            onClick={handleDelete}
+            disabled={!hasSelectedElement}
+            title={!hasSelectedElement ? "Seleziona prima un elemento da cancellare" : ""}
+          >
+            Cancella Elemento
+          </button>
+
+          <button 
+            className="btn btn-warning"
+            onClick={handleUndo}
+          >
+            Torna Indietro
           </button>
         </div>
       </div>
@@ -153,10 +259,35 @@ const Sidebar: React.FC<SidebarProps> = ({ onDrawPolygon, onDrawEdge, onExportMo
               {selectedElement.type === 'place' 
                 ? 'Attributi del Poligono' 
                 : 'Attributi dell\'Arco'}
+              <span className={`element-type-badge element-type-${selectedElement.type}`}>
+                {selectedElement.type === 'place' ? 'Poligono' : 'Arco'}
+              </span>
             </h5>
             
+            <div className="element-id-editor">
+              <label htmlFor="elementId" className="form-label">ID Elemento</label>
+              <div className="input-group">
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="elementId"
+                  value={newElementId}
+                  onChange={(e) => setNewElementId(e.target.value)}
+                  placeholder="Inserisci un nuovo ID"
+                />
+                <button 
+                  className="btn btn-outline-primary" 
+                  type="button"
+                  onClick={handleRenameElement}
+                  disabled={!newElementId.trim() || newElementId === selectedElement.id}
+                >
+                  Rinomina
+                </button>
+              </div>
+            </div>
+            
             {Object.keys(selectedElement.attributes).length > 0 ? (
-              <table className="table table-sm">
+              <table className="attributes-table">
                 <thead>
                   <tr>
                     <th>Nome</th>
@@ -208,6 +339,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onDrawPolygon, onDrawEdge, onExportMo
                 <button 
                   className="btn btn-sm btn-primary"
                   onClick={handleAddAttribute}
+                  disabled={!newAttributeName.trim() || !newAttributeValue.trim()}
                 >
                   Aggiungi
                 </button>
