@@ -3,8 +3,6 @@ import Feature from 'ol/Feature.js';
 import Geometry from 'ol/geom/Geometry.js';
 import { click } from 'ol/events/condition.js';
 import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style.js';
-import { Vector as VectorSource } from 'ol/source.js';
-import { Vector as VectorLayer } from 'ol/layer.js';
 import Map from 'ol/Map.js';
 import PolygonManager from './PolygonManager';
 import EdgeManager from './EdgeManager';
