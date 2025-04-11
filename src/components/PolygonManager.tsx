@@ -233,6 +233,11 @@ class PolygonManager {
   getPolygonCount(): number {
     return this.placeSource.getFeatures().length;
   }
+
+ 
+
+
 }
+
 
 export default PolygonManager;

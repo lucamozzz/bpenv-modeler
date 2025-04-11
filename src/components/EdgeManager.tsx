@@ -281,6 +281,7 @@ class EdgeManager {
       this.map.removeInteraction(this.selectInteraction);
       this.selectInteraction = null;
     }
+    
   }
 
   // Funzione per impostare l'arco selezionato (usata dal SelectionManager)

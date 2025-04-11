@@ -400,8 +400,8 @@ const sidebarRoot = ReactDOM.createRoot(sidebarContainer);
 // Inizializza la sidebar
 updateSidebar();
 
-// Inizializza con la modalità di disegno dei poligoni
-polygonManager.activateDrawPolygon();
+// Inizializza con la modalità di disegno dei poligoni se si vuole far disegnare fin da subito
+// polygonManager.activateDrawPolygon();
 
 // Evento click sulla mappa per debug
 map.on('click', function (evt) {

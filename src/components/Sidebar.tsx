@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import "./Sidebar.css";
 
+
+
 interface SidebarProps {
   onDrawPolygon: () => void;
   onDrawEdge: () => void;
@@ -37,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   hasSelectedElement,
   onRenameElement
 }) => {
-  const [activeButton, setActiveButton] = useState<'polygon' | 'edge' | 'select' | null>('polygon');
+  const [activeButton, setActiveButton] = useState<'polygon' | 'edge' | 'select' | null>(null);
   const [elements, setElements] = useState<Element[]>([]);
   const [selectedElement, setSelectedElement] = useState<Element | null>(null);
   const [newAttributeName, setNewAttributeName] = useState('');
@@ -85,10 +87,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     onDrawPolygon();
   };
 
+  
+ 
   const handleDrawEdge = () => {
     // Applica eventuali rinomina in sospeso prima di cambiare modalità
     applyPendingRename();
     
+    
+   
+
     setActiveButton('edge');
     onDrawEdge();
   };
