@@ -1,11 +1,12 @@
 // ui/uiState.ts
 import React from 'react';
 import Sidebar from './Sidebar';
+import Sidebar2 from './Sidebar2';
 import { undoLastAction } from '../utils/historyManager';
 import { exportModel } from '../utils/exporter';
 import { renameElement } from '../utils/attributeManager';
 
-// Stato dell’interfaccia (esportabile e modificabile)
+// Stato dell'interfaccia (esportabile e modificabile)
 export let uiState = {
   canDrawEdge: false,
   hasSelectedElement: false,
@@ -25,9 +26,10 @@ export function updateUIState(): void {
   };
 
   updateSidebar();
+  updateSidebar2();
 }
 
-// Renderizza la sidebar
+// Renderizza la sidebar principale (sinistra)
 export function updateSidebar(): void {
   const sidebarRoot = (window as any).sidebarRoot;
   const polygonManager = (window as any).polygonManager;
@@ -53,7 +55,20 @@ export function updateSidebar(): void {
   );
 }
 
-// Aggiorna gli elementi visualizzati nella sidebar
+// Renderizza la seconda sidebar (destra)
+export function updateSidebar2(): void {
+  const sidebar2Root = (window as any).sidebar2Root;
+  
+  if (!sidebar2Root) return;
+
+  sidebar2Root.render(
+    <React.StrictMode>
+      <Sidebar2 />
+    </React.StrictMode>
+  );
+}
+
+// Aggiorna gli elementi visualizzati nelle sidebar
 export function updateSidebarElements(): void {
   const polygonManager = (window as any).polygonManager;
   const edgeManager = (window as any).edgeManager;
@@ -78,9 +93,17 @@ export function updateSidebarElements(): void {
     })),
   ];
 
+  // Aggiorna entrambe le sidebar
   if (typeof (window as any).updateSidebarElements === 'function') {
     (window as any).updateSidebarElements(elements);
   }
+  
+  if (typeof (window as any).updateSidebar2Elements === 'function') {
+    (window as any).updateSidebar2Elements(elements);
+  }
+
+  // Salva gli elementi globalmente per riferimento futuro
+  (window as any).elements = elements;
 
   updateUIState();
 }

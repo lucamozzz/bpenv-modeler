@@ -34,12 +34,30 @@ const selectedEdgeStyle = new Style({
   })
 });
 
+// Stile per gli elementi evidenziati (hover)
+const highlightStyle = new Style({
+  fill: new Fill({
+    color: 'rgba(100, 200, 255, 0.3)'
+  }),
+  stroke: new Stroke({
+    color: '#66aaff',
+    width: 3
+  }),
+  image: new CircleStyle({
+    radius: 7,
+    fill: new Fill({
+      color: '#66aaff'
+    })
+  })
+});
+
 class SelectionManager {
   private map: Map;
   private polygonManager: PolygonManager;
   private edgeManager: EdgeManager;
   private selectInteraction: Select | null = null;
   private selectedElement: Feature<Geometry> | null = null;
+  private highlightedElement: Feature<Geometry> | null = null;
   private updateSidebarElements: () => void;
 
   constructor(map: Map, polygonManager: PolygonManager, edgeManager: EdgeManager, updateSidebarElements: () => void) {
@@ -177,9 +195,6 @@ class SelectionManager {
     
     // Se è un arco, aggiorna anche l'ID basato su source e target
     if (elementType === 'edge') {
-      const source = this.selectedElement.get('source');
-      const target = this.selectedElement.get('target');
-      
       // Mantieni source e target invariati, ma usa il nuovo ID personalizzato
       this.selectedElement.set('custom_id', true); // Flag per indicare che l'ID è personalizzato
     }
@@ -190,6 +205,48 @@ class SelectionManager {
     this.updateSidebarElements();
     
     return true;
+  }
+
+  // Funzione per evidenziare un elemento sulla mappa (per hover)
+  highlightElement(elementId: string): void {
+    // Rimuovi l'evidenziazione precedente
+    this.unhighlightElement();
+    
+    // Cerca l'elemento tra i poligoni
+    let element = this.polygonManager.getPlaceSource().getFeatures().find(
+      feature => feature.get('id') === elementId
+    );
+    
+    // Se non trovato tra i poligoni, cerca tra gli archi
+    if (!element) {
+      element = this.edgeManager.getEdgeSource().getFeatures().find(
+        feature => feature.get('id') === elementId
+      );
+    }
+    
+    if (element) {
+      this.highlightedElement = element;
+      
+      // Salva lo stile originale
+      const originalStyle = element.getStyle();
+      element.set('originalStyle', originalStyle);
+      
+      // Applica lo stile di evidenziazione
+      element.setStyle(highlightStyle);
+      
+      console.log(`Elemento evidenziato: ${elementId}`);
+    }
+  }
+
+  // Funzione per rimuovere l'evidenziazione
+  unhighlightElement(): void {
+    if (this.highlightedElement) {
+      // Ripristina lo stile originale
+      const originalStyle = this.highlightedElement.get('originalStyle');
+      this.highlightedElement.setStyle(originalStyle);
+      
+      this.highlightedElement = null;
+    }
   }
 }
 

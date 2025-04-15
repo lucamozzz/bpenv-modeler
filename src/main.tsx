@@ -1,4 +1,3 @@
-
 import ReactDOM from 'react-dom/client';
 import Map from 'ol/Map.js';
 import View from 'ol/View.js';
@@ -7,10 +6,10 @@ import { OSM } from 'ol/source.js';
 import { Tile as TileLayer } from 'ol/layer.js';
 import './style.css';
 
-import { initializeManagers, polygonManager, edgeManager, selectionManager } from './components/initManagers';
+import { initializeManagers } from './components/initManagers';
 import { addAttribute, removeAttribute, renameElement } from './utils/attributeManager';
 import { undoLastAction } from './utils/historyManager';
-import { updateUIState, updateSidebar } from './ui/uiState';
+import { updateUIState, updateSidebar, updateSidebar2 } from './ui/uiState';
 
 // Layer base
 const raster = new TileLayer({
@@ -43,7 +42,22 @@ initializeManagers(map);
 (window as any).undoLastAction = undoLastAction;
 (window as any).updateUIState = updateUIState;
 
-// Crea e monta la sidebar
+// Funzioni per evidenziare elementi sulla mappa
+(window as any).highlightElement = (elementId: string) => {
+  const selectionMgr = (window as any).selectionManager;
+  if (selectionMgr) {
+    selectionMgr.highlightElement(elementId);
+  }
+};
+
+(window as any).unhighlightElement = () => {
+  const selectionMgr = (window as any).selectionManager;
+  if (selectionMgr) {
+    selectionMgr.unhighlightElement();
+  }
+};
+
+// Crea e monta la sidebar principale (sinistra)
 const sidebarContainer = document.createElement('div');
 sidebarContainer.id = 'sidebar-container';
 document.body.appendChild(sidebarContainer);
@@ -51,7 +65,17 @@ document.body.appendChild(sidebarContainer);
 const sidebarRoot = ReactDOM.createRoot(sidebarContainer);
 (window as any).sidebarRoot = sidebarRoot;
 
+// Crea e monta la seconda sidebar (destra)
+const sidebar2Container = document.createElement('div');
+sidebar2Container.id = 'sidebar2-container';
+document.body.appendChild(sidebar2Container);
+
+const sidebar2Root = ReactDOM.createRoot(sidebar2Container);
+(window as any).sidebar2Root = sidebar2Root;
+
+// Aggiorna entrambe le sidebar
 updateSidebar();
+updateSidebar2();
 
 // Debug: click sulla mappa
 map.on('click', function (evt) {
