@@ -7,9 +7,13 @@ body {
 .map {
   width: 100%;
   height: 100vh;
-  margin-left: 300px; /* Spazio per la sidebar */
+  margin-left: 0; /* Spazio per la sidebar */
+  
 }
 
+
+
+  
 #sidebar-container {
   position: absolute;
   top: 0;

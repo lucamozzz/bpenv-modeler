@@ -1,5 +1,5 @@
 .sidebar {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   width: 300px;
@@ -9,10 +9,42 @@
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
   z-index: 1000;
+  transition: transform 0.3s ease-in-out, width 0.3s ease-in-out;
+}
+
+.sidebar.sidebar-hidden {
+  transform: translateX(-290px);
+  width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.sidebar-toggle-button {
+  position: fixed;
+  top: 10px;
+  left: 300px;
+  width: 24px;
+  height: 40px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-left: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  z-index: 1001;
+  transition: left 0.3s ease-in-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-toggle-button.sidebar-hidden {
+  left: 10px;
 }
 
 .control-panel,
-.attribute-panel {
+.attribute-panel,
+.expression-panel {
   margin-bottom: 20px;
   border: 1px solid #e0e0e0;
   border-radius: 5px;
@@ -101,4 +133,67 @@
 .element-type-edge {
   background-color: #fff3e6;
   color: #cc6600;
+}
+
+/* Stili per l'editor di espressioni */
+.expression-editor {
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.conditions-container {
+  margin-top: 15px;
+}
+
+.condition-row {
+  padding: 8px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.expressions-list {
+  margin-top: 10px;
+}
+
+.expression-info {
+  flex: 1;
+  cursor: pointer;
+}
+
+.expression-name {
+  font-weight: bold;
+}
+
+.expression-details {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 3px;
+}
+
+.expression-details .operator {
+  font-weight: bold;
+  color: #0066cc;
+}
+
+.expression-details .condition {
+  background-color: #f0f0f0;
+  padding: 2px 4px;
+  border-radius: 3px;
+  margin-right: 3px;
+}
+
+.expression-actions {
+  margin-left: 10px;
+}
+
+.list-group-item.active {
+  background-color: #e6f7ff;
+  border-color: #0066cc;
+  color: #333;
+}
+
+.list-group-item.active .expression-details {
+  color: #444;
 }
