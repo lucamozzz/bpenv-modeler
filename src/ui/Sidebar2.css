@@ -251,3 +251,33 @@
   background-color: #f0f0f0;
   border-radius: 4px;
 }
+
+/* Stili per la modalità di selezione */
+.sidebar2-item.selected {
+  background-color: #e6f7ff;
+  border: 2px solid #1890ff;
+}
+
+.selected-places-list {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+}
+
+.selected-place-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  margin-bottom: 4px;
+  background-color: #f0f0f0;
+  border-radius: 4px;
+}
+
+.manual-selection-interface {
+  margin-bottom: 20px;
+  border-left: 4px solid #52c41a !important;
+}

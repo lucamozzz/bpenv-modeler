@@ -51,17 +51,36 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   const [availableRooms, setAvailableRooms] = useState<Place[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
-  const [hoveredElement, setHoveredElement] = useState<string | null>(null);
+  const [hoveredElements, setHoveredElements] = useState<string[]>([]); // Modificato per supportare più elementi
   const [refreshKey, setRefreshKey] = useState<number>(0); // Stato per forzare il refresh
   const [isVisible, setIsVisible] = useState(true);
   
   // Stati per le place logiche
   const [logicalPlaces, setLogicalPlaces] = useState<LogicalPlace[]>([]);
   const [showLogicalPlaceEditor, setShowLogicalPlaceEditor] = useState(false);
-  const [newLogicalPlaceName, setNewLogicalPlaceName] = useState('');
-  const [newLogicalPlaceDescription, setNewLogicalPlaceDescription] = useState('');
-  const [logicalPlaceOperator, setLogicalPlaceOperator] = useState<'AND' | 'OR'>('AND');
-  const [conditions, setConditions] = useState<Condition[]>([]);
+  
+  // Stati per la selezione manuale di place fisiche
+  const [selectionMode, setSelectionMode] = useState<boolean>(false);
+  const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
+  const [newManualLogicalPlaceName, setNewManualLogicalPlaceName] = useState<string>('');
+
+  // Salva le place logiche nel localStorage
+  const saveLogicalPlacesToLocalStorage = () => {
+    localStorage.setItem('logicalPlaces', JSON.stringify(logicalPlaces));
+  };
+
+  // Carica le place logiche dal localStorage
+  const loadLogicalPlacesFromLocalStorage = () => {
+    const savedLogicalPlaces = localStorage.getItem('logicalPlaces');
+    if (savedLogicalPlaces) {
+      try {
+        const parsedLogicalPlaces = JSON.parse(savedLogicalPlaces) as LogicalPlace[];
+        setLogicalPlaces(parsedLogicalPlaces);
+      } catch (error) {
+        console.error('Error loading logical places from localStorage:', error);
+      }
+    }
+  };
 
   // Funzione per aggiornare gli elementi dalla mappa
   const updateElements = (newElements: Element[]) => {
@@ -104,6 +123,40 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     setRefreshKey(prev => prev + 1);
   };
 
+  // Funzione per aggiornare le place logiche con le nuove place fisiche
+  const updateLogicalPlaces = (newPlaces: Place[]) => {
+    const updatedLogicalPlaces = logicalPlaces.map(logicalPlace => {
+      // Se la place logica è stata creata manualmente (senza condizioni),
+      // mantieni le sue place fisiche originali ma aggiorna i riferimenti
+      if (logicalPlace.conditions.length === 0) {
+        return {
+          ...logicalPlace,
+          physicalPlaces: logicalPlace.physicalPlaces.map(oldPlace => {
+            // Cerca la place aggiornata corrispondente
+            const updatedPlace = newPlaces.find(p => p.id === oldPlace.id);
+            return updatedPlace || oldPlace;
+          }).filter(place => newPlaces.some(p => p.id === place.id)) // Rimuovi le place che non esistono più
+        };
+      }
+      
+      // Per le place logiche basate su condizioni, ricalcola le place fisiche
+      const matchingPlaces = newPlaces.filter(place => 
+        evaluateLogicalPlace(place, logicalPlace)
+      );
+      
+      return {
+        ...logicalPlace,
+        physicalPlaces: matchingPlaces
+      };
+    });
+    
+    // Importante: confronta se ci sono cambiamenti prima di aggiornare lo stato
+    // per evitare cicli di rendering infiniti
+    if (JSON.stringify(updatedLogicalPlaces) !== JSON.stringify(logicalPlaces)) {
+      setLogicalPlaces(updatedLogicalPlaces);
+    }
+  };
+
   // Funzione per valutare una condizione su una place
   const evaluateCondition = (place: Place, condition: Condition): boolean => {
     const attributeValue = place.attributes[condition.attribute];
@@ -137,23 +190,6 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         evaluateCondition(place, condition)
       );
     }
-  };
-
-  // Funzione per aggiornare le place logiche con le nuove place fisiche
-  const updateLogicalPlaces = (newPlaces: Place[]) => {
-    const updatedLogicalPlaces = logicalPlaces.map(logicalPlace => {
-      // Trova tutte le place fisiche che soddisfano le condizioni
-      const matchingPlaces = newPlaces.filter(place => 
-        evaluateLogicalPlace(place, logicalPlace)
-      );
-      
-      return {
-        ...logicalPlace,
-        physicalPlaces: matchingPlaces
-      };
-    });
-    
-    setLogicalPlaces(updatedLogicalPlaces);
   };
 
   // Funzione per ottenere gli elementi direttamente
@@ -201,6 +237,49 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     console.log("Sidebar2: Initialization");
     (window as any).updateSidebar2Elements = updateElements;
     
+    // Esponi la funzione per evidenziare più elementi contemporaneamente
+    (window as any).highlightMultipleElements = (elementIds: string[]) => {
+      // Utilizziamo direttamente il PolygonManager se disponibile
+      if (typeof (window as any).polygonManager !== 'undefined' && 
+          typeof (window as any).polygonManager.highlightMultipleFeatures === 'function') {
+        (window as any).polygonManager.highlightMultipleFeatures(elementIds);
+      } else {
+        // Fallback nel caso in cui il PolygonManager non sia disponibile
+        console.log("PolygonManager not available, using fallback highlighting");
+        
+        // Prima rimuoviamo tutte le evidenziazioni
+        if (typeof (window as any).unhighlightElement === 'function') {
+          (window as any).unhighlightElement();
+        }
+        
+        // Poi evidenziamo ogni elemento
+        elementIds.forEach(id => {
+          if (typeof (window as any).highlightElement === 'function') {
+            (window as any).highlightElement(id);
+          }
+        });
+      }
+    };
+    
+    // Esponi la funzione per evidenziare un singolo elemento
+    (window as any).highlightElement = (elementId: string) => {
+      if (typeof (window as any).polygonManager !== 'undefined' && 
+          typeof (window as any).polygonManager.highlightFeature === 'function') {
+        (window as any).polygonManager.highlightFeature(elementId);
+      }
+    };
+    
+    // Esponi la funzione per rimuovere le evidenziazioni
+    (window as any).unhighlightElement = () => {
+      if (typeof (window as any).polygonManager !== 'undefined' && 
+          typeof (window as any).polygonManager.unhighlightFeatures === 'function') {
+        (window as any).polygonManager.unhighlightFeatures();
+      }
+    };
+    
+    // Carica le place logiche salvate
+    loadLogicalPlacesFromLocalStorage();
+    
     // Inizializza con gli elementi esistenti se disponibili
     if ((window as any).elements) {
       console.log("Sidebar2: Existing elements found", (window as any).elements);
@@ -217,15 +296,23 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     }, 1000);
     
     return () => {
-      // Rimuovi la funzione globale e il timer quando il componente viene smontato
+      // Rimuovi le funzioni globali e il timer quando il componente viene smontato
       delete (window as any).updateSidebar2Elements;
+      delete (window as any).highlightMultipleElements;
+      delete (window as any).highlightElement;
+      delete (window as any).unhighlightElement;
       clearInterval(timer);
     };
   }, []);
 
+  // Salva le place logiche quando cambiano
+  useEffect(() => {
+    saveLogicalPlacesToLocalStorage();
+  }, [logicalPlaces]);
+
   // Funzione per evidenziare un elemento sulla mappa
   const highlightElement = (elementId: string) => {
-    setHoveredElement(elementId);
+    setHoveredElements([elementId]);
     
     if (typeof (window as any).highlightElement === 'function') {
       (window as any).highlightElement(elementId);
@@ -234,81 +321,37 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
 
   // Funzione per evidenziare più elementi sulla mappa (per place logiche)
   const highlightMultipleElements = (elementIds: string[]) => {
-    setHoveredElement(elementIds[0]); // Imposta solo il primo come hoveredElement per semplicità
+    if (elementIds.length === 0) return;
     
-    elementIds.forEach(id => {
-      if (typeof (window as any).highlightElement === 'function') {
-        (window as any).highlightElement(id);
+    // Imposta tutti gli elementi come hoveredElements
+    setHoveredElements(elementIds);
+    
+    // Utilizziamo il PolygonManager direttamente se disponibile
+    if (typeof (window as any).polygonManager !== 'undefined' && 
+        typeof (window as any).polygonManager.highlightMultipleFeatures === 'function') {
+      // Chiamata diretta al PolygonManager
+      (window as any).polygonManager.highlightMultipleFeatures(elementIds);
+    } else if (typeof (window as any).highlightMultipleElements === 'function') {
+      // Fallback alla funzione globale
+      (window as any).highlightMultipleElements(elementIds);
+    } else {
+      // Fallback nel caso in cui nessuna delle funzioni sia disponibile
+      console.log("Highlighting multiple elements:", elementIds);
+      
+      // Prima rimuoviamo tutte le evidenziazioni
+      if (typeof (window as any).unhighlightElement === 'function') {
+        (window as any).unhighlightElement();
       }
-    });
+    }
   };
 
   // Funzione per rimuovere l'evidenziazione
   const unhighlightElement = () => {
-    setHoveredElement(null);
+    setHoveredElements([]);
     
     if (typeof (window as any).unhighlightElement === 'function') {
       (window as any).unhighlightElement();
     }
-  };
-
-  // Funzione per aggiungere una nuova condizione vuota
-  const addCondition = () => {
-    setConditions([...conditions, { attribute: '', operator: '==', value: '' }]);
-  };
-
-  // Funzione per rimuovere una condizione
-  const removeCondition = (index: number) => {
-    const newConditions = [...conditions];
-    newConditions.splice(index, 1);
-    setConditions(newConditions);
-  };
-
-  // Funzione per aggiornare una condizione
-  const updateCondition = (index: number, field: keyof Condition, value: string) => {
-    const newConditions = [...conditions];
-    newConditions[index] = { 
-      ...newConditions[index], 
-      [field]: field === 'operator' 
-        ? value as '==' | '!=' | '>' | '<' | '>=' | '<=' 
-        : value 
-    };
-    setConditions(newConditions);
-  };
-
-  // Funzione per salvare la place logica corrente
-  const saveLogicalPlace = () => {
-    if (!newLogicalPlaceName || conditions.length === 0) return;
-    
-    // Trova tutte le place fisiche che soddisfano le condizioni
-    const matchingPlaces = places.filter(place => {
-      if (logicalPlaceOperator === 'AND') {
-        return conditions.every(condition => evaluateCondition(place, condition));
-      } else { // OR
-        return conditions.some(condition => evaluateCondition(place, condition));
-      }
-    });
-    
-    const newLogicalPlace: LogicalPlace = {
-      id: Date.now().toString(), // ID unico basato sul timestamp
-      name: newLogicalPlaceName,
-      description: newLogicalPlaceDescription,
-      conditions: [...conditions],
-      operator: logicalPlaceOperator,
-      physicalPlaces: matchingPlaces
-    };
-    
-    setLogicalPlaces([...logicalPlaces, newLogicalPlace]);
-    resetLogicalPlaceEditor();
-  };
-
-  // Funzione per resettare l'editor di place logiche
-  const resetLogicalPlaceEditor = () => {
-    setNewLogicalPlaceName('');
-    setNewLogicalPlaceDescription('');
-    setLogicalPlaceOperator('AND');
-    setConditions([]);
-    setShowLogicalPlaceEditor(false);
   };
 
   // Funzione per eliminare una place logica
@@ -317,16 +360,59 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     setLogicalPlaces(newLogicalPlaces);
   };
 
-  // Estrai tutti gli attributi unici dalle place per il dropdown
-  const getUniqueAttributes = (): string[] => {
-    const attributes = new Set<string>();
-    places.forEach(place => {
-      Object.keys(place.attributes).forEach(attr => attributes.add(attr));
-    });
-    return Array.from(attributes).sort();
+  // Funzione per attivare/disattivare la modalità di selezione
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    if (selectionMode) {
+      // Se stiamo uscendo dalla modalità selezione, resettiamo le place selezionate
+      setSelectedPlaces([]);
+    }
   };
 
-  // Funzione per renderizzare una sezione di elementi
+  // Funzione per gestire la selezione/deselezione di una place
+  const togglePlaceSelection = (place: Place) => {
+    if (!selectionMode) return;
+    
+    const isSelected = selectedPlaces.some(p => p.id === place.id);
+    if (isSelected) {
+      // Deseleziona la place
+      setSelectedPlaces(selectedPlaces.filter(p => p.id !== place.id));
+    } else {
+      // Seleziona la place
+      setSelectedPlaces([...selectedPlaces, place]);
+    }
+  };
+
+  // Funzione per creare una place logica dalle place selezionate
+  const createLogicalPlaceFromSelection = () => {
+    if (selectedPlaces.length === 0 || !newManualLogicalPlaceName) return;
+    
+    const newLogicalPlace: LogicalPlace = {
+      id: `logical-${Date.now()}`,
+      name: newManualLogicalPlaceName,
+      description: `Place logica creata manualmente con ${selectedPlaces.length} place fisiche`,
+      conditions: [], // Nessuna condizione, solo selezione manuale
+      operator: 'OR',
+      physicalPlaces: [...selectedPlaces]
+    };
+    
+    // Importante: crea un nuovo array per forzare l'aggiornamento dello stato
+    const updatedLogicalPlaces = [...logicalPlaces, newLogicalPlace];
+    setLogicalPlaces(updatedLogicalPlaces);
+    
+    // Salva immediatamente nel localStorage per garantire la persistenza
+    localStorage.setItem('logicalPlaces', JSON.stringify(updatedLogicalPlaces));
+    
+    // Reset dopo la creazione
+    setNewManualLogicalPlaceName('');
+    setSelectedPlaces([]);
+    setSelectionMode(false);
+    
+    // Forza un refresh del componente
+    setRefreshKey(prev => prev + 1);
+  };
+
+  // Funzione per renderizzare una sezione di elementi con supporto per la selezione
   const renderElementSection = (title: string, elements: Element[], showZone: boolean = false) => {
     if (elements.length === 0) return null;
     
@@ -334,38 +420,58 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
       <div className="sidebar2-section">
         <h3>{title}</h3>
         <div className="sidebar2-items">
-          {elements.map(element => (
-            <div 
-              key={`${element.id}-${refreshKey}`}
-              className={`sidebar2-item ${hoveredElement === element.id ? 'hovered' : ''}`}
-              onMouseEnter={() => highlightElement(element.id)}
-              onMouseLeave={unhighlightElement}
-            >
-              <h6>{element.id}</h6>
-              {showZone && element.type === 'place' && element.attributes.zone && (
-                <div className="sidebar2-attribute">
-                  <span>zone: </span>
-                  {element.attributes.zone}
-                </div>
-              )}
-              {element.type === 'edge' && (
-                <div className="sidebar2-attribute">
-                  <span>from: </span>
-                  {element.source}
-                  <span> to: </span>
-                  {element.target}
-                </div>
-              )}
-              {Object.entries(element.attributes)
-                .filter(([key]) => key !== 'zone' || !showZone) // Evita di mostrare zone due volte
-                .map(([key, value]) => (
-                  <div key={`${key}-${refreshKey}`} className="sidebar2-attribute">
-                    <span>{key}: </span>
-                    {value}
+          {elements.map(element => {
+            // Verifica se l'elemento è una place e se è selezionato
+            const isPlace = element.type === 'place';
+            const isSelected = isPlace && selectedPlaces.some(p => p.id === element.id);
+            
+            return (
+              <div 
+                key={`${element.id}-${refreshKey}`}
+                className={`sidebar2-item 
+                  ${hoveredElements.includes(element.id) ? 'hovered' : ''} 
+                  ${isSelected ? 'selected' : ''}`}
+                onMouseEnter={() => highlightElement(element.id)}
+                onMouseLeave={unhighlightElement}
+                onClick={() => isPlace && togglePlaceSelection(element as Place)}
+                style={selectionMode && isPlace ? { cursor: 'pointer' } : {}}
+              >
+                <h6>
+                  {isPlace && selectionMode && (
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => {}} // Gestito dal click sul div
+                      className="me-2"
+                    />
+                  )}
+                  {element.id}
+                </h6>
+                {showZone && element.type === 'place' && element.attributes.zone && (
+                  <div className="sidebar2-attribute">
+                    <span>zone: </span>
+                    {element.attributes.zone}
                   </div>
-                ))}
-            </div>
-          ))}
+                )}
+                {element.type === 'edge' && (
+                  <div className="sidebar2-attribute">
+                    <span>from: </span>
+                    {element.source}
+                    <span> to: </span>
+                    {element.target}
+                  </div>
+                )}
+                {Object.entries(element.attributes)
+                  .filter(([key]) => key !== 'zone' || !showZone) // Evita di mostrare zone due volte
+                  .map(([key, value]) => (
+                    <div key={`${key}-${refreshKey}`} className="sidebar2-attribute">
+                      <span>{key}: </span>
+                      {value}
+                    </div>
+                  ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -388,30 +494,48 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
             <span>available: </span>
             {filteredRooms.length}
           </div>
-          {filteredRooms.map(room => (
-            <div 
-              key={`${room.id}-${refreshKey}`}
-              className={`sidebar2-item ${hoveredElement === room.id ? 'hovered' : ''}`}
-              onMouseEnter={() => highlightElement(room.id)}
-              onMouseLeave={unhighlightElement}
-            >
-              <h6>{room.id}</h6>
-              {room.attributes.zone && (
-                <div className="sidebar2-attribute">
-                  <span>zone: </span>
-                  {room.attributes.zone}
-                </div>
-              )}
-              {Object.entries(room.attributes)
-                .filter(([key]) => key !== 'zone') // Evita di mostrare zone due volte
-                .map(([key, value]) => (
-                  <div key={`${key}-${refreshKey}`} className="sidebar2-attribute">
-                    <span>{key}: </span>
-                    {value}
+          {filteredRooms.map(room => {
+            const isSelected = selectedPlaces.some(p => p.id === room.id);
+            
+            return (
+              <div 
+                key={`${room.id}-${refreshKey}`}
+                className={`sidebar2-item 
+                  ${hoveredElements.includes(room.id) ? 'hovered' : ''} 
+                  ${isSelected ? 'selected' : ''}`}
+                onMouseEnter={() => highlightElement(room.id)}
+                onMouseLeave={unhighlightElement}
+                onClick={() => togglePlaceSelection(room)}
+                style={selectionMode ? { cursor: 'pointer' } : {}}
+              >
+                <h6>
+                  {selectionMode && (
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => {}} // Gestito dal click sul div
+                      className="me-2"
+                    />
+                  )}
+                  {room.id}
+                </h6>
+                {room.attributes.zone && (
+                  <div className="sidebar2-attribute">
+                    <span>zone: </span>
+                    {room.attributes.zone}
                   </div>
-                ))}
-            </div>
-          ))}
+                )}
+                {Object.entries(room.attributes)
+                  .filter(([key]) => key !== 'zone') // Evita di mostrare zone due volte
+                  .map(([key, value]) => (
+                    <div key={`${key}-${refreshKey}`} className="sidebar2-attribute">
+                      <span>{key}: </span>
+                      {value}
+                    </div>
+                  ))}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -439,17 +563,18 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
               <div 
                 key={`${logicalPlace.id}-${refreshKey}`}
                 className="sidebar2-logical-place"
+                onMouseEnter={() => highlightMultipleElements(logicalPlace.physicalPlaces.map(p => p.id))}
+                onMouseLeave={unhighlightElement}
               >
-                <div 
-                  className="sidebar2-logical-place-header"
-                  onMouseEnter={() => highlightMultipleElements(logicalPlace.physicalPlaces.map(p => p.id))}
-                  onMouseLeave={unhighlightElement}
-                >
+                <div className="sidebar2-logical-place-header">
                   <h6>{logicalPlace.name}</h6>
                   <div className="sidebar2-logical-place-actions">
                     <button 
                       className="btn btn-sm btn-danger"
-                      onClick={() => deleteLogicalPlace(logicalPlace.id)}
+                      onClick={(e) => {
+                        e.stopPropagation(); // Previene l'attivazione dell'evento onMouseEnter del div padre
+                        deleteLogicalPlace(logicalPlace.id);
+                      }}
                     >
                       Delete
                     </button>
@@ -462,17 +587,6 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                   </div>
                 )}
                 
-                <div className="sidebar2-logical-place-conditions">
-                  <strong>Conditions ({logicalPlace.operator}):</strong>
-                  <ul>
-                    {logicalPlace.conditions.map((condition, index) => (
-                      <li key={index}>
-                        {condition.attribute} {condition.operator} {condition.value}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
                 <div className="sidebar2-logical-place-physical">
                   <strong>Physical Places ({logicalPlace.physicalPlaces.length}):</strong>
                   <div className="sidebar2-logical-place-physical-list">
@@ -480,8 +594,6 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                       <div 
                         key={`${place.id}-${refreshKey}`}
                         className="sidebar2-logical-place-physical-item"
-                        onMouseEnter={() => highlightElement(place.id)}
-                        onMouseLeave={unhighlightElement}
                       >
                         {place.id}
                       </div>
@@ -496,137 +608,65 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     );
   };
 
-  // Renderizza l'editor di place logiche
-  const renderLogicalPlaceEditor = () => (
-    <div className="sidebar2-logical-place-editor">
-      <h3>Create Logical Place</h3>
-      
-      <div className="mb-3">
-        <label htmlFor="logicalPlaceName" className="form-label">Name</label>
-        <input 
-          type="text" 
-          className="form-control" 
-          id="logicalPlaceName"
-          value={newLogicalPlaceName}
-          onChange={(e) => setNewLogicalPlaceName(e.target.value)}
-          placeholder="Enter a name for this logical place"
-        />
-      </div>
-      
-      <div className="mb-3">
-        <label htmlFor="logicalPlaceDescription" className="form-label">Description (optional)</label>
-        <textarea 
-          className="form-control" 
-          id="logicalPlaceDescription"
-          value={newLogicalPlaceDescription}
-          onChange={(e) => setNewLogicalPlaceDescription(e.target.value)}
-          placeholder="Enter a description"
-          rows={2}
-        />
-      </div>
-      
-      <div className="mb-3">
-        <label className="form-label">Combine Conditions with</label>
-        <div className="btn-group w-100">
-          <button 
-            className={`btn ${logicalPlaceOperator === 'AND' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setLogicalPlaceOperator('AND')}
-          >
-            AND
-          </button>
-          <button 
-            className={`btn ${logicalPlaceOperator === 'OR' ? 'btn-primary' : 'btn-outline-primary'}`}
-            onClick={() => setLogicalPlaceOperator('OR')}
-          >
-            OR
-          </button>
+  // Renderizza l'interfaccia per la creazione manuale di place logiche
+  const renderManualSelectionInterface = () => {
+    if (!selectionMode) return null;
+    
+    return (
+      <div className="sidebar2-section manual-selection-interface">
+        <h3>Crea Place Logica</h3>
+        <div className="mb-3">
+          <label htmlFor="manualLogicalPlaceName" className="form-label">Nome della Place Logica</label>
+          <input 
+            type="text" 
+            className="form-control" 
+            id="manualLogicalPlaceName"
+            value={newManualLogicalPlaceName}
+            onChange={(e) => setNewManualLogicalPlaceName(e.target.value)}
+            placeholder="Inserisci un nome"
+          />
         </div>
-      </div>
-      
-      <div className="conditions-container">
-        <label className="form-label">Conditions</label>
         
-        {conditions.length === 0 ? (
-          <p className="text-muted">No conditions added yet. Add a condition below.</p>
-        ) : (
-          conditions.map((condition, index) => (
-            <div key={index} className="condition-row mb-2">
-              <div className="row g-2">
-                <div className="col">
-                  <select 
-                    className="form-select form-select-sm"
-                    value={condition.attribute}
-                    onChange={(e) => updateCondition(index, 'attribute', e.target.value)}
-                  >
-                    <option value="">Select attribute</option>
-                    {getUniqueAttributes().map(attr => (
-                      <option key={attr} value={attr}>{attr}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-3">
-                  <select 
-                    className="form-select form-select-sm"
-                    value={condition.operator}
-                    onChange={(e) => updateCondition(index, 'operator', e.target.value)}
-                  >
-                    <option value="==">==</option>
-                    <option value="!=">!=</option>
-                    <option value=">">&gt;</option>
-                    <option value="<">&lt;</option>
-                    <option value=">=">&gt;=</option>
-                    <option value="<=">&lt;=</option>
-                  </select>
-                </div>
-                <div className="col">
-                  <input 
-                    type="text" 
-                    className="form-control form-control-sm"
-                    value={condition.value}
-                    onChange={(e) => updateCondition(index, 'value', e.target.value)}
-                    placeholder="Value"
-                  />
-                </div>
-                <div className="col-auto">
+        <div className="mb-3">
+          <p>Place fisiche selezionate: <strong>{selectedPlaces.length}</strong></p>
+          {selectedPlaces.length > 0 && (
+            <div className="selected-places-list">
+              {selectedPlaces.map(place => (
+                <div key={place.id} className="selected-place-item">
+                  {place.id}
                   <button 
-                    className="btn btn-sm btn-danger"
-                    onClick={() => removeCondition(index)}
+                    className="btn btn-sm btn-danger ms-2"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePlaceSelection(place);
+                    }}
                   >
                     ✕
                   </button>
                 </div>
-              </div>
+              ))}
             </div>
-          ))
-        )}
+          )}
+        </div>
         
-        <div className="mt-2">
+        <div className="d-flex justify-content-end">
           <button 
-            className="btn btn-sm btn-outline-primary"
-            onClick={addCondition}
+            className="btn btn-secondary me-2"
+            onClick={toggleSelectionMode}
           >
-            + Add Condition
+            Annulla
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={createLogicalPlaceFromSelection}
+            disabled={selectedPlaces.length === 0 || !newManualLogicalPlaceName}
+          >
+            Crea Place Logica
           </button>
         </div>
       </div>
-      
-      <div className="mt-3 d-flex justify-content-end">
-        <button 
-          className="btn btn-secondary me-2"
-          onClick={resetLogicalPlaceEditor}
-        >
-          Cancel
-        </button>
-        <button 
-          className="btn btn-primary"
-          onClick={saveLogicalPlace}
-          disabled={!newLogicalPlaceName || conditions.length === 0}
-        >
-          Save Logical Place
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   // Mostra sempre la sezione Places anche se vuota, per debug
   const debugPlaces = (
@@ -642,22 +682,40 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
             </div>
           </div>
         ) : (
-          places.map(place => (
-            <div 
-              key={`${place.id}-${refreshKey}`}
-              className={`sidebar2-item ${hoveredElement === place.id ? 'hovered' : ''}`}
-              onMouseEnter={() => highlightElement(place.id)}
-              onMouseLeave={unhighlightElement}
-            >
-              <h6>{place.id}</h6>
-              {Object.entries(place.attributes).map(([key, value]) => (
-                <div key={`${key}-${refreshKey}`} className="sidebar2-attribute">
-                  <span>{key}: </span>
-                  {value}
-                </div>
-              ))}
-            </div>
-          ))
+          places.map(place => {
+            const isSelected = selectedPlaces.some(p => p.id === place.id);
+            
+            return (
+              <div 
+                key={`${place.id}-${refreshKey}`}
+                className={`sidebar2-item 
+                  ${hoveredElements.includes(place.id) ? 'hovered' : ''} 
+                  ${isSelected ? 'selected' : ''}`}
+                onMouseEnter={() => highlightElement(place.id)}
+                onMouseLeave={unhighlightElement}
+                onClick={() => togglePlaceSelection(place)}
+                style={selectionMode ? { cursor: 'pointer' } : {}}
+              >
+                <h6>
+                  {selectionMode && (
+                    <input 
+                      type="checkbox" 
+                      checked={isSelected}
+                      onChange={() => {}} // Gestito dal click sul div
+                      className="me-2"
+                    />
+                  )}
+                  {place.id}
+                </h6>
+                {Object.entries(place.attributes).map(([key, value]) => (
+                  <div key={`${key}-${refreshKey}`} className="sidebar2-attribute">
+                    <span>{key}: </span>
+                    {value}
+                  </div>
+                ))}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
@@ -683,15 +741,36 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
       {renderToggleButton()}
       <div className={`sidebar2 ${!isVisible ? 'sidebar2-hidden' : ''}`}>
         <h3>Elements of the map</h3>
-        <button 
-          className="sidebar2-refresh-button"
-          onClick={fetchElements}
-        >
-          Update Elements
-        </button>
+        <div className="d-flex mb-3">
+          <button 
+            className="sidebar2-refresh-button me-2"
+            onClick={fetchElements}
+          >
+            Update Elements
+          </button>
+          <button 
+            className={`btn ${selectionMode ? 'btn-success' : 'btn-outline-success'}`}
+            onClick={toggleSelectionMode}
+          >
+            {selectionMode ? 'Modalità Selezione Attiva' : 'Seleziona Place Fisiche'}
+          </button>
+        </div>
+        
+        {renderManualSelectionInterface()}
         
         {showLogicalPlaceEditor ? (
-          renderLogicalPlaceEditor()
+          <div className="sidebar2-logical-place-editor">
+            <h3>Create Logical Place</h3>
+            <p>Questa funzionalità è stata semplificata. Usa "Seleziona Place Fisiche" per creare place logiche.</p>
+            <div className="mt-3 d-flex justify-content-end">
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setShowLogicalPlaceEditor(false)}
+              >
+                Chiudi
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             {renderLogicalPlacesSection()}

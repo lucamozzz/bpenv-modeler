@@ -47,6 +47,17 @@ const selectedStyle = new Style({
   })
 });
 
+// Stile per l'evidenziazione
+const highlightStyle = new Style({
+  fill: new Fill({
+    color: 'rgba(255, 255, 0, 0.3)'
+  }),
+  stroke: new Stroke({
+    color: '#ff9900',
+    width: 2
+  })
+});
+
 class PolygonManager {
   private map: Map;
   private placeSource: VectorSource;
@@ -234,10 +245,59 @@ class PolygonManager {
     return this.placeSource.getFeatures().length;
   }
 
- 
+  // Funzione per evidenziare un singolo elemento
+  highlightFeature(featureId: string): void {
+    // Prima rimuovi tutte le evidenziazioni
+    this.unhighlightFeatures();
+    
+    // Trova la feature da evidenziare
+    const feature = this.placeSource.getFeatures().find(f => f.get('id') === featureId);
+    
+    if (feature) {
+      // Salva lo stile originale se non è già stato salvato
+      if (!feature.get('originalStyle')) {
+        feature.set('originalStyle', feature.getStyle() || placeStyle);
+      }
+      
+      // Applica lo stile di evidenziazione
+      feature.setStyle(highlightStyle);
+    }
+  }
 
+  // Funzione per evidenziare più elementi contemporaneamente
+  highlightMultipleFeatures(featureIds: string[]): void {
+    // Prima rimuovi tutte le evidenziazioni
+    this.unhighlightFeatures();
+    
+    // Evidenzia ogni feature nell'array
+    featureIds.forEach(id => {
+      const feature = this.placeSource.getFeatures().find(f => f.get('id') === id);
+      
+      if (feature) {
+        // Salva lo stile originale se non è già stato salvato
+        if (!feature.get('originalStyle')) {
+          feature.set('originalStyle', feature.getStyle() || placeStyle);
+        }
+        
+        // Applica lo stile di evidenziazione
+        feature.setStyle(highlightStyle);
+      }
+    });
+  }
 
+  // Funzione per rimuovere tutte le evidenziazioni
+  unhighlightFeatures(): void {
+    this.placeSource.getFeatures().forEach(feature => {
+      // Ripristina lo stile originale se esiste
+      const originalStyle = feature.get('originalStyle');
+      if (originalStyle) {
+        feature.setStyle(originalStyle);
+        feature.unset('originalStyle');
+      } else {
+        feature.setStyle(placeStyle);
+      }
+    });
+  }
 }
-
 
 export default PolygonManager;
