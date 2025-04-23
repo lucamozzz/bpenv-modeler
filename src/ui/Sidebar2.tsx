@@ -42,6 +42,13 @@ interface LogicalPlace {
   physicalPlaces: Place[]; // Place fisiche che soddisfano le condizioni
 }
 
+interface View {
+  id: string;
+  name: string;
+  description?: string;
+  logicalPlaces: string[]; // ID delle place logiche contenute nella view
+}
+
 type Element = Place | Edge;
 
 // Componente per la sidebar a destra
@@ -63,6 +70,15 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
   const [selectedPlaces, setSelectedPlaces] = useState<Place[]>([]);
   const [newManualLogicalPlaceName, setNewManualLogicalPlaceName] = useState<string>('');
+  
+  // Stato per le views
+  const [views, setViews] = useState<View[]>([]);
+  const [showViewEditor, setShowViewEditor] = useState(false);
+  const [newViewName, setNewViewName] = useState<string>('');
+  const [selectedLogicalPlaces, setSelectedLogicalPlaces] = useState<string[]>([]);
+  
+  // Stato per espandere/comprimere i dettagli delle place fisiche
+  const [expandedLogicalPlaces, setExpandedLogicalPlaces] = useState<string[]>([]);
 
   // Salva le place logiche nel localStorage
   const saveLogicalPlacesToLocalStorage = () => {
@@ -78,6 +94,24 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         setLogicalPlaces(parsedLogicalPlaces);
       } catch (error) {
         console.error('Error loading logical places from localStorage:', error);
+      }
+    }
+  };
+  
+  // Salva le views nel localStorage
+  const saveViewsToLocalStorage = () => {
+    localStorage.setItem('views', JSON.stringify(views));
+  };
+
+  // Carica le views dal localStorage
+  const loadViewsFromLocalStorage = () => {
+    const savedViews = localStorage.getItem('views');
+    if (savedViews) {
+      try {
+        const parsedViews = JSON.parse(savedViews) as View[];
+        setViews(parsedViews);
+      } catch (error) {
+        console.error('Error loading views from localStorage:', error);
       }
     }
   };
@@ -277,8 +311,9 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
       }
     };
     
-    // Carica le place logiche salvate
+    // Carica le place logiche e le views salvate
     loadLogicalPlacesFromLocalStorage();
+    loadViewsFromLocalStorage();
     
     // Inizializza con gli elementi esistenti se disponibili
     if ((window as any).elements) {
@@ -309,6 +344,11 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   useEffect(() => {
     saveLogicalPlacesToLocalStorage();
   }, [logicalPlaces]);
+  
+  // Salva le views quando cambiano
+  useEffect(() => {
+    saveViewsToLocalStorage();
+  }, [views]);
 
   // Funzione per evidenziare un elemento sulla mappa
   const highlightElement = (elementId: string) => {
@@ -358,6 +398,19 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   const deleteLogicalPlace = (id: string) => {
     const newLogicalPlaces = logicalPlaces.filter(place => place.id !== id);
     setLogicalPlaces(newLogicalPlaces);
+    
+    // Rimuovi anche la place logica da tutte le views che la contengono
+    const updatedViews = views.map(view => ({
+      ...view,
+      logicalPlaces: view.logicalPlaces.filter(placeId => placeId !== id)
+    }));
+    setViews(updatedViews);
+  };
+  
+  // Funzione per eliminare una view
+  const deleteView = (id: string) => {
+    const newViews = views.filter(view => view.id !== id);
+    setViews(newViews);
   };
 
   // Funzione per attivare/disattivare la modalità di selezione
@@ -380,6 +433,20 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     } else {
       // Seleziona la place
       setSelectedPlaces([...selectedPlaces, place]);
+    }
+  };
+  
+  // Funzione per gestire la selezione/deselezione di una place logica per una view
+  const toggleLogicalPlaceSelection = (logicalPlaceId: string) => {
+    if (!showViewEditor) return;
+    
+    const isSelected = selectedLogicalPlaces.includes(logicalPlaceId);
+    if (isSelected) {
+      // Deseleziona la place logica
+      setSelectedLogicalPlaces(selectedLogicalPlaces.filter(id => id !== logicalPlaceId));
+    } else {
+      // Seleziona la place logica
+      setSelectedLogicalPlaces([...selectedLogicalPlaces, logicalPlaceId]);
     }
   };
 
@@ -410,6 +477,44 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     
     // Forza un refresh del componente
     setRefreshKey(prev => prev + 1);
+  };
+  
+  // Funzione per creare una view dalle place logiche selezionate
+  const createViewFromSelection = () => {
+    if (selectedLogicalPlaces.length === 0 || !newViewName) return;
+    
+    const newView: View = {
+      id: `view-${Date.now()}`,
+      name: newViewName,
+      description: `View creata con ${selectedLogicalPlaces.length} place logiche`,
+      logicalPlaces: [...selectedLogicalPlaces]
+    };
+    
+    // Importante: crea un nuovo array per forzare l'aggiornamento dello stato
+    const updatedViews = [...views, newView];
+    setViews(updatedViews);
+    
+    // Salva immediatamente nel localStorage per garantire la persistenza
+    localStorage.setItem('views', JSON.stringify(updatedViews));
+    
+    // Reset dopo la creazione
+    setNewViewName('');
+    setSelectedLogicalPlaces([]);
+    setShowViewEditor(false);
+    
+    // Forza un refresh del componente
+    setRefreshKey(prev => prev + 1);
+  };
+  
+  // Funzione per espandere/comprimere i dettagli di una place logica
+  const toggleLogicalPlaceExpansion = (logicalPlaceId: string) => {
+    if (expandedLogicalPlaces.includes(logicalPlaceId)) {
+      // Comprimi
+      setExpandedLogicalPlaces(expandedLogicalPlaces.filter(id => id !== logicalPlaceId));
+    } else {
+      // Espandi
+      setExpandedLogicalPlaces([...expandedLogicalPlaces, logicalPlaceId]);
+    }
   };
 
   // Funzione per renderizzare una sezione di elementi con supporto per la selezione
@@ -547,33 +652,153 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
       <div className="sidebar2-section logical-places-section">
         <div className="d-flex justify-content-between align-items-center">
           <h3>Logical Places</h3>
-          <button 
-            className="btn btn-sm btn-outline-primary"
-            onClick={() => setShowLogicalPlaceEditor(true)}
-          >
-            + New Logical Place
-          </button>
+          <div>
+            <button 
+              className="btn btn-sm btn-outline-primary me-2"
+              onClick={() => setShowLogicalPlaceEditor(true)}
+            >
+              + New Logical Place
+            </button>
+            <button 
+              className="btn btn-sm btn-outline-success"
+              onClick={() => setShowViewEditor(true)}
+            >
+              + New View
+            </button>
+          </div>
         </div>
         
         {logicalPlaces.length === 0 ? (
           <p className="text-muted">No logical places defined yet.</p>
         ) : (
           <div className="sidebar2-items">
-            {logicalPlaces.map(logicalPlace => (
+            {logicalPlaces.map(logicalPlace => {
+              const isExpanded = expandedLogicalPlaces.includes(logicalPlace.id);
+              const isSelected = selectedLogicalPlaces.includes(logicalPlace.id);
+              
+              return (
+                <div 
+                  key={`${logicalPlace.id}-${refreshKey}`}
+                  className={`sidebar2-logical-place ${isSelected ? 'selected' : ''}`}
+                  onMouseEnter={() => highlightMultipleElements(logicalPlace.physicalPlaces.map(p => p.id))}
+                  onMouseLeave={unhighlightElement}
+                  onClick={() => showViewEditor && toggleLogicalPlaceSelection(logicalPlace.id)}
+                  style={showViewEditor ? { cursor: 'pointer' } : {}}
+                >
+                  <div className="sidebar2-logical-place-header">
+                    <div className="d-flex align-items-center">
+                      {showViewEditor && (
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={() => {}} // Gestito dal click sul div
+                          className="me-2"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      )}
+                      <h6>{logicalPlace.name}</h6>
+                      <button 
+                        className="btn btn-sm btn-link ms-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleLogicalPlaceExpansion(logicalPlace.id);
+                        }}
+                      >
+                        {isExpanded ? '▼' : '►'}
+                      </button>
+                    </div>
+                    <div className="sidebar2-logical-place-actions">
+                      <button 
+                        className="btn btn-sm btn-danger"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Previene l'attivazione dell'evento onMouseEnter del div padre
+                          deleteLogicalPlace(logicalPlace.id);
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {logicalPlace.description && (
+                    <div className="sidebar2-logical-place-description">
+                      {logicalPlace.description}
+                    </div>
+                  )}
+                  
+                  <div className="sidebar2-logical-place-physical">
+                    <strong>Physical Places ({logicalPlace.physicalPlaces.length}):</strong>
+                    <div className="sidebar2-logical-place-physical-list">
+                      {logicalPlace.physicalPlaces.map(place => (
+                        <div 
+                          key={`${place.id}-${refreshKey}`}
+                          className="sidebar2-logical-place-physical-item"
+                        >
+                          <div className="d-flex justify-content-between align-items-center">
+                            <span>{place.id}</span>
+                          </div>
+                          
+                          {/* Mostra gli attributi se la place logica è espansa */}
+                          {isExpanded && Object.entries(place.attributes).length > 0 && (
+                            <div className="sidebar2-logical-place-physical-attributes">
+                              {Object.entries(place.attributes).map(([key, value]) => (
+                                <div key={`${place.id}-${key}-${refreshKey}`} className="sidebar2-attribute">
+                                  <span>{key}: </span>
+                                  {value}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // Renderizza la sezione delle views
+  const renderViewsSection = () => {
+    if (views.length === 0) return null;
+    
+    return (
+      <div className="sidebar2-section views-section">
+        <h3>Views</h3>
+        <div className="sidebar2-items">
+          {views.map(view => {
+            // Trova tutte le place logiche contenute nella view
+            const viewLogicalPlaces = logicalPlaces.filter(lp => 
+              view.logicalPlaces.includes(lp.id)
+            );
+            
+            // Calcola tutte le place fisiche contenute nelle place logiche della view
+            const allPhysicalPlaceIds = viewLogicalPlaces.flatMap(lp => 
+              lp.physicalPlaces.map(p => p.id)
+            );
+            
+            // Rimuovi duplicati
+            const uniquePhysicalPlaceIds = [...new Set(allPhysicalPlaceIds)];
+            
+            return (
               <div 
-                key={`${logicalPlace.id}-${refreshKey}`}
-                className="sidebar2-logical-place"
-                onMouseEnter={() => highlightMultipleElements(logicalPlace.physicalPlaces.map(p => p.id))}
+                key={`${view.id}-${refreshKey}`}
+                className="sidebar2-view"
+                onMouseEnter={() => highlightMultipleElements(uniquePhysicalPlaceIds)}
                 onMouseLeave={unhighlightElement}
               >
-                <div className="sidebar2-logical-place-header">
-                  <h6>{logicalPlace.name}</h6>
-                  <div className="sidebar2-logical-place-actions">
+                <div className="sidebar2-view-header">
+                  <h6>{view.name}</h6>
+                  <div className="sidebar2-view-actions">
                     <button 
                       className="btn btn-sm btn-danger"
                       onClick={(e) => {
-                        e.stopPropagation(); // Previene l'attivazione dell'evento onMouseEnter del div padre
-                        deleteLogicalPlace(logicalPlace.id);
+                        e.stopPropagation();
+                        deleteView(view.id);
                       }}
                     >
                       Delete
@@ -581,29 +806,29 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                   </div>
                 </div>
                 
-                {logicalPlace.description && (
-                  <div className="sidebar2-logical-place-description">
-                    {logicalPlace.description}
+                {view.description && (
+                  <div className="sidebar2-view-description">
+                    {view.description}
                   </div>
                 )}
                 
-                <div className="sidebar2-logical-place-physical">
-                  <strong>Physical Places ({logicalPlace.physicalPlaces.length}):</strong>
-                  <div className="sidebar2-logical-place-physical-list">
-                    {logicalPlace.physicalPlaces.map(place => (
+                <div className="sidebar2-view-logical-places">
+                  <strong>Logical Places ({viewLogicalPlaces.length}):</strong>
+                  <div className="sidebar2-view-logical-places-list">
+                    {viewLogicalPlaces.map(logicalPlace => (
                       <div 
-                        key={`${place.id}-${refreshKey}`}
-                        className="sidebar2-logical-place-physical-item"
+                        key={`${view.id}-${logicalPlace.id}-${refreshKey}`}
+                        className="sidebar2-view-logical-place-item"
                       >
-                        {place.id}
+                        {logicalPlace.name} ({logicalPlace.physicalPlaces.length} places)
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -662,6 +887,74 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
             disabled={selectedPlaces.length === 0 || !newManualLogicalPlaceName}
           >
             Crea Place Logica
+          </button>
+        </div>
+      </div>
+    );
+  };
+  
+  // Renderizza l'interfaccia per la creazione di views
+  const renderViewCreationInterface = () => {
+    if (!showViewEditor) return null;
+    
+    return (
+      <div className="sidebar2-section view-creation-interface">
+        <h3>Crea View</h3>
+        <div className="mb-3">
+          <label htmlFor="viewName" className="form-label">Nome della View</label>
+          <input 
+            type="text" 
+            className="form-control" 
+            id="viewName"
+            value={newViewName}
+            onChange={(e) => setNewViewName(e.target.value)}
+            placeholder="Inserisci un nome"
+          />
+        </div>
+        
+        <div className="mb-3">
+          <p>Place logiche selezionate: <strong>{selectedLogicalPlaces.length}</strong></p>
+          {selectedLogicalPlaces.length > 0 && (
+            <div className="selected-logical-places-list">
+              {selectedLogicalPlaces.map(id => {
+                const logicalPlace = logicalPlaces.find(lp => lp.id === id);
+                return logicalPlace ? (
+                  <div key={id} className="selected-logical-place-item">
+                    {logicalPlace.name}
+                    <button 
+                      className="btn btn-sm btn-danger ms-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLogicalPlaceSelection(id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          )}
+        </div>
+        
+        <p className="text-muted">Seleziona le place logiche da includere nella view dalla lista sottostante.</p>
+        
+        <div className="d-flex justify-content-end">
+          <button 
+            className="btn btn-secondary me-2"
+            onClick={() => {
+              setShowViewEditor(false);
+              setSelectedLogicalPlaces([]);
+            }}
+          >
+            Annulla
+          </button>
+          <button 
+            className="btn btn-primary"
+            onClick={createViewFromSelection}
+            disabled={selectedLogicalPlaces.length === 0 || !newViewName}
+          >
+            Crea View
           </button>
         </div>
       </div>
@@ -757,6 +1050,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         </div>
         
         {renderManualSelectionInterface()}
+        {renderViewCreationInterface()}
         
         {showLogicalPlaceEditor ? (
           <div className="sidebar2-logical-place-editor">
@@ -773,12 +1067,13 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
           </div>
         ) : (
           <>
+            {renderViewsSection()}
             {renderLogicalPlacesSection()}
             {renderElementSection("Roads", roads, true)}
             {renderElementSection("Departments", departments)}
             {renderAvailableRoomsSection("Available Emergency Rooms", availableRooms, "emergency")}
             {renderAvailableRoomsSection("Available Radiology Rooms", availableRooms, "radiology")}
-            {debugPlaces}
+            {renderElementSection("Places", places)}
             {renderElementSection("Edges", edges)}
           </>
         )}
