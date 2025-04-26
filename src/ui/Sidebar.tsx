@@ -206,6 +206,32 @@ const Sidebar: React.FC<SidebarProps> = ({
     setExpressions([...expressions, newExpression]);
     resetExpressionEditor();
   };
+  
+  // Funzione per creare una place logica da un'espressione
+  const createLogicalPlaceFromExpression = (expression: Expression) => {
+    // Filtra le place che soddisfano l'espressione
+    const matchingPlaces = elements
+      .filter(element => element.type === 'place')
+      .filter(element => evaluateExpression(element, expression));
+    
+    // Crea una nuova place logica
+    const logicalPlace = {
+      id: `logical-${expression.id}`,
+      name: expression.name,
+      description: `Place logica creata dall'espressione: ${expression.name}`,
+      conditions: [...expression.conditions],
+      operator: expression.operator,
+      physicalPlaces: matchingPlaces
+    };
+    
+    // Invia la place logica alla sidebar destra
+    if (typeof (window as any).addLogicalPlace === 'function') {
+      (window as any).addLogicalPlace(logicalPlace);
+      console.log('Place logica creata:', logicalPlace);
+    } else {
+      console.error('Funzione addLogicalPlace non disponibile');
+    }
+  };
 
   // Funzione per resettare l'editor di espressioni
   const resetExpressionEditor = () => {
@@ -498,6 +524,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               </div>
               <div className="expression-actions">
+                <button 
+                  className="btn btn-sm btn-success me-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    createLogicalPlaceFromExpression(expr);
+                  }}
+                  title="Create logical place from this expression"
+                >
+                  Create Place
+                </button>
                 <button 
                   className="btn btn-sm btn-danger"
                   onClick={(e) => {

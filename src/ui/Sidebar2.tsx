@@ -47,6 +47,7 @@ interface View {
   name: string;
   description?: string;
   logicalPlaces: string[]; // ID delle place logiche contenute nella view
+  aggregatedAttributes?: string[]; // Attributi da aggregare nella view
 }
 
 type Element = Place | Edge;
@@ -271,6 +272,28 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     console.log("Sidebar2: Initialization");
     (window as any).updateSidebar2Elements = updateElements;
     
+    // Esponi la funzione per aggiungere una place logica dalla sidebar sinistra
+    (window as any).addLogicalPlace = (logicalPlace: LogicalPlace) => {
+      console.log("Sidebar2: Ricevuta nuova place logica", logicalPlace);
+      
+      // Verifica se esiste già una place logica con lo stesso ID
+      const existingIndex = logicalPlaces.findIndex(place => place.id === logicalPlace.id);
+      
+      if (existingIndex >= 0) {
+        // Aggiorna la place logica esistente
+        const updatedLogicalPlaces = [...logicalPlaces];
+        updatedLogicalPlaces[existingIndex] = {
+          ...logicalPlace,
+          // Mantieni la descrizione esistente se presente
+          description: logicalPlaces[existingIndex].description || logicalPlace.description
+        };
+        setLogicalPlaces(updatedLogicalPlaces);
+      } else {
+        // Aggiungi la nuova place logica
+        setLogicalPlaces([...logicalPlaces, logicalPlace]);
+      }
+    };
+    
     // Esponi la funzione per evidenziare più elementi contemporaneamente
     (window as any).highlightMultipleElements = (elementIds: string[]) => {
       // Utilizziamo direttamente il PolygonManager se disponibile
@@ -479,6 +502,33 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     setRefreshKey(prev => prev + 1);
   };
   
+  // Stato per gli attributi da aggregare
+  const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
+  const [availableAttributes, setAvailableAttributes] = useState<string[]>([]);
+
+  // Funzione per ottenere tutti gli attributi unici dalle place
+  const getUniqueAttributes = (): string[] => {
+    const attributes = new Set<string>();
+    places.forEach(place => {
+      Object.keys(place.attributes).forEach(attr => attributes.add(attr));
+    });
+    return Array.from(attributes).sort();
+  };
+
+  // Aggiorna gli attributi disponibili quando cambiano le place
+  useEffect(() => {
+    setAvailableAttributes(getUniqueAttributes());
+  }, [places]);
+
+  // Funzione per gestire la selezione/deselezione di un attributo
+  const toggleAttributeSelection = (attribute: string) => {
+    if (selectedAttributes.includes(attribute)) {
+      setSelectedAttributes(selectedAttributes.filter(attr => attr !== attribute));
+    } else {
+      setSelectedAttributes([...selectedAttributes, attribute]);
+    }
+  };
+
   // Funzione per creare una view dalle place logiche selezionate
   const createViewFromSelection = () => {
     if (selectedLogicalPlaces.length === 0 || !newViewName) return;
@@ -487,7 +537,8 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
       id: `view-${Date.now()}`,
       name: newViewName,
       description: `View creata con ${selectedLogicalPlaces.length} place logiche`,
-      logicalPlaces: [...selectedLogicalPlaces]
+      logicalPlaces: [...selectedLogicalPlaces],
+      aggregatedAttributes: selectedAttributes.length > 0 ? [...selectedAttributes] : undefined
     };
     
     // Importante: crea un nuovo array per forzare l'aggiornamento dello stato
@@ -500,6 +551,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     // Reset dopo la creazione
     setNewViewName('');
     setSelectedLogicalPlaces([]);
+    setSelectedAttributes([]);
     setShowViewEditor(false);
     
     // Forza un refresh del componente
@@ -825,6 +877,45 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                     ))}
                   </div>
                 </div>
+                
+                {view.aggregatedAttributes && view.aggregatedAttributes.length > 0 && (
+                  <div className="sidebar2-view-aggregated-attributes">
+                    <strong>Attributi Aggregati:</strong>
+                    <div className="sidebar2-view-aggregated-attributes-list">
+                      {view.aggregatedAttributes.map(attr => {
+                        // Raccoglie tutti i valori unici per questo attributo da tutte le place fisiche
+                        const allValues = viewLogicalPlaces.flatMap(lp => 
+                          lp.physicalPlaces
+                            .filter(p => p.attributes[attr] !== undefined)
+                            .map(p => p.attributes[attr])
+                        );
+                        
+                        // Rimuovi duplicati
+                        const uniqueValues = [...new Set(allValues)];
+                        
+                        // Conta le occorrenze di ciascun valore
+                        const valueCounts = uniqueValues.map(value => {
+                          const count = allValues.filter(v => v === value).length;
+                          return { value, count };
+                        }).sort((a, b) => b.count - a.count); // Ordina per conteggio decrescente
+                        
+                        return (
+                          <div key={`${view.id}-${attr}-${refreshKey}`} className="aggregated-attribute-item">
+                            <div className="aggregated-attribute-name">{attr}:</div>
+                            <div className="aggregated-attribute-values">
+                              {valueCounts.map(({ value, count }, index) => (
+                                <span key={`${value}-${index}`} className="aggregated-value">
+                                  {value} ({count})
+                                  {index < valueCounts.length - 1 ? ', ' : ''}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -939,12 +1030,37 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         
         <p className="text-muted">Seleziona le place logiche da includere nella view dalla lista sottostante.</p>
         
+        <div className="mb-3">
+          <label className="form-label">Attributi da Aggregare</label>
+          <div className="available-attributes-list">
+            {availableAttributes.map(attr => (
+              <div 
+                key={attr} 
+                className={`attribute-item ${selectedAttributes.includes(attr) ? 'selected' : ''}`}
+                onClick={() => toggleAttributeSelection(attr)}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedAttributes.includes(attr)}
+                  onChange={() => {}} // Gestito dal click sul div
+                  className="me-2"
+                />
+                {attr}
+              </div>
+            ))}
+          </div>
+          {availableAttributes.length === 0 && (
+            <p className="text-muted">Nessun attributo disponibile nelle place fisiche.</p>
+          )}
+        </div>
+        
         <div className="d-flex justify-content-end">
           <button 
             className="btn btn-secondary me-2"
             onClick={() => {
               setShowViewEditor(false);
               setSelectedLogicalPlaces([]);
+              setSelectedAttributes([]);
             }}
           >
             Annulla
