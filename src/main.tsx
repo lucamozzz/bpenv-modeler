@@ -10,6 +10,8 @@ import { initializeManagers } from './components/initManagers';
 import { addAttribute, removeAttribute, renameElement } from './utils/attributeManager';
 import { undoLastAction } from './utils/historyManager';
 import { updateUIState, updateSidebar, updateSidebar2 } from './ui/uiState';
+import { exportModel } from './utils/exporter';
+import { handleFileUpload, importModel } from './utils/importer';
 
 // Layer base
 const raster = new TileLayer({
@@ -41,6 +43,9 @@ initializeManagers(map);
 (window as any).renameElement = renameElement;
 (window as any).undoLastAction = undoLastAction;
 (window as any).updateUIState = updateUIState;
+(window as any).exportModel = exportModel;
+(window as any).importModel = importModel;
+(window as any).handleFileUpload = handleFileUpload;
 
 // Funzioni per evidenziare elementi sulla mappa
 (window as any).highlightElement = (elementId: string) => {
@@ -89,3 +94,17 @@ map.on('change', function () {
 
 // Aggiornamento periodico dello stato
 setInterval(updateUIState, 1000);
+
+// Crea l'input file nascosto per l'upload
+document.addEventListener('DOMContentLoaded', () => {
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.id = 'model-upload';
+  fileInput.accept = '.json';
+  fileInput.style.display = 'none';
+  fileInput.addEventListener('change', (e) => handleFileUpload(e));
+  document.body.appendChild(fileInput);
+  
+  // Esponi la funzione per attivare l'input file
+  (window as any).triggerFileInput = () => fileInput.click();
+});

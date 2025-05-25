@@ -756,10 +756,16 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="mt-4">
           <button 
-            className="btn btn-success w-100"
+            className="btn btn-success w-100 mb-2"
             onClick={onExportModel}
           >
             Export Model (JSON)
+          </button>
+          <button 
+            className="btn btn-primary w-100"
+            onClick={() => (window as any).triggerFileInput?.()}
+          >
+            Import Model
           </button>
         </div>
       </div>

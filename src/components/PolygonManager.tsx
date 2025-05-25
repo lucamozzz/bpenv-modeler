@@ -117,6 +117,32 @@ class PolygonManager {
     return [x / coordinates.length, y / coordinates.length];
   }
 
+  // Funzione per verificare se un poligono si sovrappone ad altri
+  checkPolygonOverlap(polygon: Polygon, currentFeature: Feature<Geometry>): boolean {
+    const features = this.placeSource.getFeatures();
+    
+    // Controlla la sovrapposizione con ogni poligono esistente
+    for (let i = 0; i < features.length; i++) {
+      const existingFeature = features[i];
+      
+      // Salta il controllo se stiamo confrontando con la feature corrente
+      if (existingFeature === currentFeature) {
+        continue;
+      }
+      
+      const existingGeometry = existingFeature.getGeometry() as Polygon;
+      
+      // Verifica se i poligoni si intersecano
+      if (polygon.intersectsExtent(existingGeometry.getExtent())) {
+        // Controllo più dettagliato potrebbe essere implementato qui
+        // Per semplicità, consideriamo qualsiasi intersezione come sovrapposizione
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
   // Funzione per attivare la modalità di disegno dei poligoni
   activateDrawPolygon(): void {
     // Rimuovi interazioni precedenti
@@ -134,11 +160,27 @@ class PolygonManager {
     // Gestisci l'evento di fine disegno
     this.drawInteraction.on('drawend', (event) => {
       const feature = event.feature;
+      const geometry = feature.getGeometry() as Polygon;
+      
+      // Imposta gli attributi di base prima del controllo di sovrapposizione
       feature.set('type', 'place');
       feature.set('id', 'place_' + Date.now());
       feature.set('attributes', {});
       
-      const geometry = feature.getGeometry() as Polygon;
+      // Verifica se il poligono si sovrappone ad altri
+      if (this.checkPolygonOverlap(geometry, feature)) {
+        // Se c'è sovrapposizione, avvisa l'utente e rimuovi il poligono
+        alert('Non è possibile creare una place che si sovrappone ad altre place esistenti.');
+        
+        // Rimuovi il poligono appena disegnato in modo sicuro
+        setTimeout(() => {
+          this.placeSource.removeFeature(feature);
+        }, 10);
+        
+        return;
+      }
+      
+      // Se non ci sono sovrapposizioni, procedi con l'aggiunta del poligono
       const coordinates = geometry.getCoordinates()[0];
       console.log('Drawn polygon coordinates:', coordinates);
       

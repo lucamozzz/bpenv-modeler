@@ -231,11 +231,19 @@ class EdgeManager {
       const targetId = target.get('id');
       const edgeId = 'edge_' + sourceId + '_' + targetId;
       
-      // Verifica se esiste già un arco con lo stesso ID
+      // Verifica se esiste già un arco con lo stesso ID o con origine/destinazione invertite
       const existingEdges = this.edgeSource.getFeatures();
       for (let i = 0; i < existingEdges.length; i++) {
-        if (existingEdges[i].get('id') === edgeId) {
+        const edge = existingEdges[i];
+        const edgeSourceId = edge.get('source');
+        const edgeTargetId = edge.get('target');
+        
+        // Controlla sia l'ID esatto che la combinazione invertita di source/target
+        if (edge.get('id') === edgeId || 
+            (edgeSourceId === sourceId && edgeTargetId === targetId) || 
+            (edgeSourceId === targetId && edgeTargetId === sourceId)) {
           console.log('Arco già esistente tra questi poligoni');
+          alert('Non è possibile creare un arco duplicato tra questi poligoni');
           return; // Esci dalla funzione se l'arco esiste già
         }
       }

@@ -47,7 +47,7 @@ interface View {
   name: string;
   description?: string;
   logicalPlaces: string[]; // ID delle place logiche contenute nella view
-  aggregatedAttributes?: string[]; // Attributi da aggregare nella view (Potentially deprecated if aggregation is only in LogicalPlace)
+  // Rimosso aggregatedAttributes poiché le aggregazioni saranno gestite per ogni attributo nella view
 }
 
 type Element = Place | Edge;
@@ -81,16 +81,19 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   // Stato per espandere/comprimere i dettagli delle place fisiche
   const [expandedLogicalPlaces, setExpandedLogicalPlaces] = useState<string[]>([]);
 
-  // *** ADDED: State for selected aggregation functions per logical place ***
-  // Example: { 'logical-123': { 'posti': 'SUM', 'area': 'AVG' }, 'logical-456': { 'posti': 'MAX' } }
-  const [selectedAggregations, setSelectedAggregations] = useState<Record<string, Record<string, 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null>>>({});
+  // *** ADDED: State for selected aggregation functions per view and attribute ***
+  // Example: { 'view-123': { 'attributeName': { 'logical-123': 'SUM', 'logical-456': 'AVG' } } }
+  const [viewAggregations, setViewAggregations] = useState<Record<string, Record<string, Record<string, 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null>>>>({});
 
 
   // Salva le place logiche nel localStorage
   const saveLogicalPlacesToLocalStorage = () => {
     localStorage.setItem('logicalPlaces', JSON.stringify(logicalPlaces));
-    // *** ADDED: Save aggregations to localStorage ***
-    localStorage.setItem('selectedAggregations', JSON.stringify(selectedAggregations));
+  };
+
+  // Salva le aggregazioni delle view nel localStorage
+  const saveViewAggregationsToLocalStorage = () => {
+    localStorage.setItem('viewAggregations', JSON.stringify(viewAggregations));
   };
 
   // Carica le place logiche dal localStorage
@@ -104,21 +107,31 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         console.error('Error loading logical places from localStorage:', error);
       }
     }
-    // *** ADDED: Load aggregations from localStorage ***
-    const savedAggregations = localStorage.getItem('selectedAggregations');
-    if (savedAggregations) {
-        try {
-            const parsedAggregations = JSON.parse(savedAggregations);
-            setSelectedAggregations(parsedAggregations);
-        } catch (error) {
-            console.error('Error loading selected aggregations from localStorage:', error);
-        }
+  };
+
+  // Carica le aggregazioni delle view dal localStorage
+  const loadViewAggregationsFromLocalStorage = () => {
+    const savedViewAggregations = localStorage.getItem('viewAggregations');
+    if (savedViewAggregations) {
+      try {
+        const parsedViewAggregations = JSON.parse(savedViewAggregations);
+        setViewAggregations(parsedViewAggregations);
+      } catch (error) {
+        console.error('Error loading view aggregations from localStorage:', error);
+      }
     }
   };
 
   // Salva le views nel localStorage
   const saveViewsToLocalStorage = () => {
     localStorage.setItem('views', JSON.stringify(views));
+  };
+
+  // Salva tutto nel localStorage
+  const saveAllToLocalStorage = () => {
+    saveLogicalPlacesToLocalStorage();
+    saveViewsToLocalStorage();
+    saveViewAggregationsToLocalStorage();
   };
 
   // Carica le views dal localStorage
@@ -132,6 +145,13 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         console.error('Error loading views from localStorage:', error);
       }
     }
+  };
+  
+  // Carica tutto dal localStorage
+  const loadAllFromLocalStorage = () => {
+    loadLogicalPlacesFromLocalStorage();
+    loadViewsFromLocalStorage();
+    loadViewAggregationsFromLocalStorage();
   };
 
   // Funzione per aggiornare gli elementi dalla mappa
@@ -384,7 +404,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   // Salva le place logiche quando cambiano
   useEffect(() => {
     saveLogicalPlacesToLocalStorage();
-  }, [logicalPlaces, selectedAggregations]); // *** ADDED selectedAggregations dependency ***
+  }, [logicalPlaces, viewAggregations]); // Aggiornato da selectedAggregations a viewAggregations
 
   // Salva le views quando cambiano
   useEffect(() => {
@@ -440,23 +460,41 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     // Remove from logicalPlaces state
     setLogicalPlaces(prev => prev.filter(place => place.id !== id));
 
-    // *** ADDED: Remove aggregations associated with this logical place ***
-    setSelectedAggregations(prev => {
-        const newState = {...prev};
-        delete newState[id];
-        return newState;
-    });
-
     // Rimuovi anche la place logica da tutte le views che la contengono
     setViews(prevViews => prevViews.map(view => ({
       ...view,
       logicalPlaces: view.logicalPlaces.filter(placeId => placeId !== id)
     })));
+    
+    // Rimuovi le aggregazioni associate a questa place logica
+    setViewAggregations(prev => {
+      const newState = {...prev};
+      // Per ogni view
+      Object.keys(newState).forEach(viewId => {
+        // Per ogni attributo nella view
+        if (newState[viewId]) {
+          Object.keys(newState[viewId]).forEach(attrName => {
+            // Rimuovi la logical place dalle aggregazioni
+            if (newState[viewId][attrName] && newState[viewId][attrName][id]) {
+              delete newState[viewId][attrName][id];
+            }
+          });
+        }
+      });
+      return newState;
+    });
   };
 
   // Funzione per eliminare una view
   const deleteView = (id: string) => {
     setViews(prev => prev.filter(view => view.id !== id));
+    
+    // Rimuovi anche le aggregazioni associate a questa view
+    setViewAggregations(prev => {
+      const newState = {...prev};
+      delete newState[id];
+      return newState;
+    });
   };
 
   // Funzione per attivare/disattivare la modalità di selezione
@@ -557,12 +595,37 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   const createViewFromSelection = () => {
     if (selectedLogicalPlaces.length === 0 || !newViewName.trim()) return;
 
+    // Verifica se le logical place selezionate sono già presenti in altre view
+    const logicalPlacesInUse: {placeId: string, viewId: string, viewName: string}[] = [];
+    
+    views.forEach(existingView => {
+      selectedLogicalPlaces.forEach(placeId => {
+        if (existingView.logicalPlaces.includes(placeId)) {
+          logicalPlacesInUse.push({
+            placeId,
+            viewId: existingView.id,
+            viewName: existingView.name
+          });
+        }
+      });
+    });
+    
+    // Se ci sono logical place già in uso, mostra un avviso e interrompi la creazione
+    if (logicalPlacesInUse.length > 0) {
+      const duplicateMessages = logicalPlacesInUse.map(item => {
+        const logicalPlace = logicalPlaces.find(lp => lp.id === item.placeId);
+        return `La logical place "${logicalPlace?.name || item.placeId}" è già utilizzata nella view "${item.viewName}"`;
+      });
+      
+      alert(`Non è possibile creare la view perché alcune logical place sono già utilizzate in altre view:\n\n${duplicateMessages.join('\n')}`);
+      return;
+    }
+
     const newView: View = {
       id: `view-${Date.now()}`,
       name: newViewName.trim(),
       description: `View created with ${selectedLogicalPlaces.length} logical place(s)`,
-      logicalPlaces: [...selectedLogicalPlaces],
-      // aggregatedAttributes: selectedAttributes.length > 0 ? [...selectedAttributes] : undefined // Deprecated for now
+      logicalPlaces: [...selectedLogicalPlaces]
     };
 
     // Importante: usa l'aggiornamento funzionale
@@ -571,11 +634,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     // Reset dopo la creazione
     setNewViewName('');
     setSelectedLogicalPlaces([]);
-    // setSelectedAttributes([]); // Deprecated
     setShowViewEditor(false); // Close modal
-
-    // Forza un refresh del componente (potrebbe non essere necessario)
-    // setRefreshKey(prev => prev + 1);
   };
 
   // Funzione per espandere/comprimere i dettagli di una place logica
@@ -842,12 +901,16 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
 
               // *** ADDED: Handle Aggregation Change ***
               const handleAggregationChange = (attributeName: string, func: 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null) => {
-                setSelectedAggregations(prev => ({
+                setViewAggregations(prev => ({
                   ...prev,
                   [logicalPlace.id]: {
                     ...(prev[logicalPlace.id] || {}),
-                    [attributeName]: func,
-                  }
+                    [attributeName]: {
+                      ...((prev[logicalPlace.id]?.[attributeName]) || {}),
+                      // Use a fixed key, e.g. 'default', or use logicalPlace.id as key if you want per-logicalPlace/attribute aggregation
+                      default: func,
+                    },
+                  },
                 }));
               };
 
@@ -912,7 +975,10 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                     ) : (
                         <div className="list-group list-group-flush small">
                             {Object.entries(attributesSummary).map(([attrName, summary]) => {
-                                const selectedFunc = selectedAggregations[logicalPlace.id]?.[attrName] ?? null;
+                                // Fix: selectedFunc should be a string or null, not an object.
+                                // If your viewAggregations structure is Record<string, Record<string, Record<string, 'MAX' | ... | null>>>
+                                // and you want the default aggregation, extract it:
+                                const selectedFunc = (viewAggregations[logicalPlace.id]?.[attrName]?.default ?? null) as 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null;
                                 // Aggregate numeric attributes present in at least one place. COUNT works always.
                                 const canAggregateNumeric = summary.isNumeric && summary.values.length > 0;
                                 const showAggregationControls = canAggregateNumeric || attrName === 'posti'; // Always allow aggregation for 'posti' as requested? Or check if numeric? Let's stick to numeric check.
