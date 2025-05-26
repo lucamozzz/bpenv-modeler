@@ -8,6 +8,7 @@ import { Style, Fill, Stroke, Circle as CircleStyle } from 'ol/style.js';
 import { Vector as VectorSource } from 'ol/source.js';
 import { Vector as VectorLayer } from 'ol/layer.js';
 import Map from 'ol/Map.js';
+import { intersects } from 'ol/extent.js';
 
 // Definizione delle interfacce
 interface PlaceAttributes {
@@ -117,6 +118,50 @@ class PolygonManager {
     return [x / coordinates.length, y / coordinates.length];
   }
 
+  // Funzione per verificare se due poligoni hanno un'area di intersezione reale
+  hasIntersectionArea(polygon1: Polygon, polygon2: Polygon): boolean {
+    try {
+      // Ottieni le coordinate dei poligoni
+      const coords1 = polygon1.getCoordinates()[0];
+      const coords2 = polygon2.getCoordinates()[0];
+      
+      // Verifica se ci sono punti di un poligono all'interno dell'altro
+      // Questo è un controllo più preciso rispetto alla semplice intersezione delle extent
+      
+      // Verifica se almeno un punto del poligono 1 è all'interno del poligono 2
+      for (let i = 0; i < coords1.length; i++) {
+        if (polygon2.containsXY(coords1[i][0], coords1[i][1])) {
+          return true;
+        }
+      }
+      
+      // Verifica se almeno un punto del poligono 2 è all'interno del poligono 1
+      for (let i = 0; i < coords2.length; i++) {
+        if (polygon1.containsXY(coords2[i][0], coords2[i][1])) {
+          return true;
+        }
+      }
+      
+      // Ottieni le extent dei due poligoni
+      const extent1 = polygon1.getExtent();
+      const extent2 = polygon2.getExtent();
+      
+      // Se le extent non si intersecano, i poligoni non si intersecano
+      if (!intersects(extent1, extent2)) {
+        return false;
+      }
+      
+      // Se le extent si intersecano, ma nessun punto è contenuto nell'altro poligono,
+      // allora i poligoni sono adiacenti ma non sovrapposti
+      return false;
+      
+    } catch (error) {
+      console.error("Errore nel controllo di sovrapposizione:", error);
+      // In caso di errore, per sicurezza consideriamo i poligoni come non sovrapposti
+      return false;
+    }
+  }
+
   // Funzione per verificare se un poligono si sovrappone ad altri
   checkPolygonOverlap(polygon: Polygon, currentFeature: Feature<Geometry>): boolean {
     const features = this.placeSource.getFeatures();
@@ -132,10 +177,8 @@ class PolygonManager {
       
       const existingGeometry = existingFeature.getGeometry() as Polygon;
       
-      // Verifica se i poligoni si intersecano
-      if (polygon.intersectsExtent(existingGeometry.getExtent())) {
-        // Controllo più dettagliato potrebbe essere implementato qui
-        // Per semplicità, consideriamo qualsiasi intersezione come sovrapposizione
+      // Verifica se i poligoni hanno un'area di intersezione reale
+      if (this.hasIntersectionArea(polygon, existingGeometry)) {
         return true;
       }
     }
