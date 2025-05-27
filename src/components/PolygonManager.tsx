@@ -213,7 +213,7 @@ class PolygonManager {
       // Verifica se il poligono si sovrappone ad altri
       if (this.checkPolygonOverlap(geometry, feature)) {
         // Se c'è sovrapposizione, avvisa l'utente e rimuovi il poligono
-        alert('Non è possibile creare una place che si sovrappone ad altre place esistenti.');
+        alert('You cannot create a place that overlaps with other existing places.');
         
         // Rimuovi il poligono appena disegnato in modo sicuro
         setTimeout(() => {

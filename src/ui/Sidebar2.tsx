@@ -54,9 +54,6 @@ type Element = Place | Edge;
 
 // Componente per la sidebar a destra
 const Sidebar2: React.FC<Sidebar2Props> = () => {
-  const [roads, setRoads] = useState<Place[]>([]);
-  const [departments, setDepartments] = useState<Place[]>([]);
-  const [availableRooms, setAvailableRooms] = useState<Place[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [hoveredElements, setHoveredElements] = useState<string[]>([]); // Modificato per supportare più elementi
@@ -162,29 +159,8 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     const newPlaces = newElements.filter(el => el.type === 'place') as Place[];
     const newEdges = newElements.filter(el => el.type === 'edge') as Edge[];
 
-    // Categorizza i poligoni in base agli attributi (Potentially less relevant now)
-    const newRoads = newPlaces.filter(place =>
-      place.attributes.type === 'road' ||
-      place.id.toLowerCase().includes('sp') ||
-      place.attributes.zone?.toLowerCase().includes('sp')
-    );
-
-    const newDepartments = newPlaces.filter(place =>
-      place.attributes.type === 'department' ||
-      place.id.toLowerCase().includes('department') ||
-      place.attributes.department === 'true'
-    );
-
-    const newAvailableRooms = newPlaces.filter(place =>
-      place.attributes.type === 'room' ||
-      place.attributes.available === 'true' ||
-      place.id.toLowerCase().includes('room')
-    );
-
+  
     // Aggiorna gli stati
-    setRoads(newRoads);
-    setDepartments(newDepartments);
-    setAvailableRooms(newAvailableRooms);
     setPlaces(newPlaces);
     setEdges(newEdges);
 
@@ -1355,16 +1331,18 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     <>
       {renderToggleButton()}
       <div className={`sidebar2 ${!isVisible ? 'sidebar2-hidden' : ''}`}>
-        <div className="d-flex justify-content-between align-items-center mb-2">
-            <h3 className="mb-0">Map Elements</h3>
-            <button
-              className="sidebar2-refresh-button btn btn-sm btn-outline-secondary"
-              onClick={fetchElements}
-              title="Refresh elements from map"
-            >
-              🔄
-            </button>
-        </div>
+  <div className="sidebar2-header mb-2">
+    <h3 className="mb-1 text-nowrap">Map Elements</h3>
+    <button
+      className="sidebar2-refresh-button btn btn-sm btn-outline-secondary"
+      onClick={fetchElements}
+      title="Refresh elements from map"
+    >
+      Update Elements 🔄
+    </button>
+  </div>
+
+
 
         {/* Main Content Sections */} 
         {renderViewsSection()}
@@ -1374,10 +1352,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         {selectionMode && debugPlaces}
 
         {/* Render other sections */}
-        {renderElementSection("Roads", roads, true)}
-        {renderElementSection("Departments", departments)}
-        {renderAvailableRoomsSection("Available Emergency Rooms", availableRooms, "emergency")}
-        {renderAvailableRoomsSection("Available Radiology Rooms", availableRooms, "radiology")}
+       
         {renderElementSection("Places", places)}
         {renderElementSection("Edges", edges)}
 
