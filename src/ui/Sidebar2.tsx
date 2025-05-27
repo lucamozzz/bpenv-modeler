@@ -47,7 +47,6 @@ interface View {
   name: string;
   description?: string;
   logicalPlaces: string[]; // ID delle place logiche contenute nella view
-  // Rimosso aggregatedAttributes poiché le aggregazioni saranno gestite per ogni attributo nella view
 }
 
 type Element = Place | Edge;
@@ -78,10 +77,10 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   // Stato per espandere/comprimere i dettagli delle place fisiche
   const [expandedLogicalPlaces, setExpandedLogicalPlaces] = useState<string[]>([]);
 
-  // *** ADDED: State for selected aggregation functions per view and attribute ***
-  // Example: { 'view-123': { 'attributeName': { 'logical-123': 'SUM', 'logical-456': 'AVG' } } }
-  const [viewAggregations, setViewAggregations] = useState<Record<string, Record<string, Record<string, 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null>>>>({});
-
+  // Stato per le aggregazioni delle view
+  // Modificato: ora memorizza solo l'aggregazione per attributo a livello di view
+  // Esempio: { 'view-123': { 'attributeName': 'SUM' } }
+  const [viewAggregations, setViewAggregations] = useState<Record<string, Record<string, 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null>>>({});
 
   // Salva le place logiche nel localStorage
   const saveLogicalPlacesToLocalStorage = () => {
@@ -348,8 +347,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     };
 
     // Carica le place logiche e le views salvate
-    loadLogicalPlacesFromLocalStorage();
-    loadViewsFromLocalStorage();
+    loadAllFromLocalStorage();
 
     // Inizializza con gli elementi esistenti se disponibili
     if ((window as any).elements) {
@@ -380,12 +378,17 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
   // Salva le place logiche quando cambiano
   useEffect(() => {
     saveLogicalPlacesToLocalStorage();
-  }, [logicalPlaces, viewAggregations]); // Aggiornato da selectedAggregations a viewAggregations
+  }, [logicalPlaces]);
 
   // Salva le views quando cambiano
   useEffect(() => {
     saveViewsToLocalStorage();
   }, [views]);
+
+  // Salva le aggregazioni quando cambiano
+  useEffect(() => {
+    saveViewAggregationsToLocalStorage();
+  }, [viewAggregations]);
 
   // Funzione per evidenziare un elemento sulla mappa
   const highlightElement = (elementId: string) => {
@@ -437,28 +440,10 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     setLogicalPlaces(prev => prev.filter(place => place.id !== id));
 
     // Rimuovi anche la place logica da tutte le views che la contengono
-    setViews(prevViews => prevViews.map(view => ({
+    setViews(prev => prev.map(view => ({
       ...view,
       logicalPlaces: view.logicalPlaces.filter(placeId => placeId !== id)
     })));
-    
-    // Rimuovi le aggregazioni associate a questa place logica
-    setViewAggregations(prev => {
-      const newState = {...prev};
-      // Per ogni view
-      Object.keys(newState).forEach(viewId => {
-        // Per ogni attributo nella view
-        if (newState[viewId]) {
-          Object.keys(newState[viewId]).forEach(attrName => {
-            // Rimuovi la logical place dalle aggregazioni
-            if (newState[viewId][attrName] && newState[viewId][attrName][id]) {
-              delete newState[viewId][attrName][id];
-            }
-          });
-        }
-      });
-      return newState;
-    });
   };
 
   // Funzione per eliminare una view
@@ -466,363 +451,243 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     setViews(prev => prev.filter(view => view.id !== id));
     
     // Rimuovi anche le aggregazioni associate a questa view
-    setViewAggregations(prev => {
-      const newState = {...prev};
-      delete newState[id];
-      return newState;
+    const updatedViewAggregations = { ...viewAggregations };
+    delete updatedViewAggregations[id];
+    setViewAggregations(updatedViewAggregations);
+  };
+
+  // Funzione per espandere/comprimere i dettagli di una place logica
+  const toggleLogicalPlaceExpansion = (id: string) => {
+    setExpandedLogicalPlaces(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(placeId => placeId !== id);
+      } else {
+        return [...prev, id];
+      }
     });
   };
 
   // Funzione per attivare/disattivare la modalità di selezione
   const toggleSelectionMode = () => {
     setSelectionMode(prev => !prev);
-    if (selectionMode) { // If turning OFF selection mode
-      // Resettiamo le place selezionate
+    if (selectionMode) {
+      // Se stiamo disattivando la modalità di selezione, deseleziona tutte le place
       setSelectedPlaces([]);
     }
   };
 
-  // Funzione per gestire la selezione/deselezione di una place
+  // Funzione per selezionare/deselezionare una place
   const togglePlaceSelection = (place: Place) => {
     if (!selectionMode) return;
 
-    setSelectedPlaces(prevSelected => {
-      const isSelected = prevSelected.some(p => p.id === place.id);
+    setSelectedPlaces(prev => {
+      const isSelected = prev.some(p => p.id === place.id);
       if (isSelected) {
-        // Deseleziona la place
-        return prevSelected.filter(p => p.id !== place.id);
+        return prev.filter(p => p.id !== place.id);
       } else {
-        // Seleziona la place
-        return [...prevSelected, place];
+        return [...prev, place];
       }
     });
   };
 
-  // Funzione per gestire la selezione/deselezione di una place logica per una view
-  const toggleLogicalPlaceSelection = (logicalPlaceId: string) => {
-    if (!showViewEditor) return;
-
-    setSelectedLogicalPlaces(prevSelected => {
-        const isSelected = prevSelected.includes(logicalPlaceId);
-        if (isSelected) {
-          // Deseleziona la place logica
-          return prevSelected.filter(id => id !== logicalPlaceId);
-        } else {
-          // Seleziona la place logica
-          return [...prevSelected, logicalPlaceId];
-        }
+  // Funzione per selezionare/deselezionare una place logica per una view
+  const toggleLogicalPlaceSelection = (id: string) => {
+    setSelectedLogicalPlaces(prev => {
+      if (prev.includes(id)) {
+        return prev.filter(placeId => placeId !== id);
+      } else {
+        return [...prev, id];
+      }
     });
   };
 
-  // Funzione per creare una place logica dalle place selezionate
+  // Funzione per creare una place logica dalla selezione manuale
   const createLogicalPlaceFromSelection = () => {
     if (selectedPlaces.length === 0 || !newManualLogicalPlaceName.trim()) return;
 
     const newLogicalPlace: LogicalPlace = {
       id: `logical-${Date.now()}`,
       name: newManualLogicalPlaceName.trim(),
-      description: `Manually created with ${selectedPlaces.length} physical place(s)`,
-      conditions: [], // Nessuna condizione, solo selezione manuale
-      operator: 'OR', // Operator doesn't matter here
-      physicalPlaces: [...selectedPlaces] // Copy selected places
+      conditions: [], // Place logica manuale, senza condizioni
+      operator: 'AND', // Non rilevante per place logiche manuali
+      physicalPlaces: selectedPlaces
     };
 
-    // Importante: usa l'aggiornamento funzionale per evitare race conditions
     setLogicalPlaces(prev => [...prev, newLogicalPlace]);
-
-    // Reset dopo la creazione
-    setNewManualLogicalPlaceName('');
-    setSelectedPlaces([]);
+    setShowLogicalPlaceEditor(false);
     setSelectionMode(false);
-    setShowLogicalPlaceEditor(false); // Close modal
-
-    // Forza un refresh del componente (potrebbe non essere necessario con l'aggiornamento dello stato)
-    // setRefreshKey(prev => prev + 1);
+    setSelectedPlaces([]);
+    setNewManualLogicalPlaceName('');
   };
 
-  // Stato per gli attributi da aggregare (Potentially deprecated)
-  // const [selectedAttributes, setSelectedAttributes] = useState<string[]>([]);
-  // const [availableAttributes, setAvailableAttributes] = useState<string[]>([]);
-
-  // Funzione per ottenere tutti gli attributi unici dalle place (Potentially deprecated)
-  // const getUniqueAttributes = (): string[] => {
-  //   const attributes = new Set<string>();
-  //   places.forEach(place => {
-  //     Object.keys(place.attributes).forEach(attr => attributes.add(attr));
-  //   });
-  //   return Array.from(attributes).sort();
-  // };
-
-  // Aggiorna gli attributi disponibili quando cambiano le place (Potentially deprecated)
-  // useEffect(() => {
-  //   setAvailableAttributes(getUniqueAttributes());
-  // }, [places]);
-
-  // Funzione per gestire la selezione/deselezione di un attributo (Potentially deprecated)
-  // const toggleAttributeSelection = (attribute: string) => {
-  //   if (selectedAttributes.includes(attribute)) {
-  //     setSelectedAttributes(selectedAttributes.filter(attr => attr !== attribute));
-  //   } else {
-  //     setSelectedAttributes([...selectedAttributes, attribute]);
-  //   }
-  // };
-
-  // Funzione per creare una view dalle place logiche selezionate
+  // Funzione per creare una view dalla selezione di place logiche
   const createViewFromSelection = () => {
     if (selectedLogicalPlaces.length === 0 || !newViewName.trim()) return;
-
-    // Verifica se le logical place selezionate sono già presenti in altre view
-    const logicalPlacesInUse: {placeId: string, viewId: string, viewName: string}[] = [];
-    
-    views.forEach(existingView => {
-      selectedLogicalPlaces.forEach(placeId => {
-        if (existingView.logicalPlaces.includes(placeId)) {
-          logicalPlacesInUse.push({
-            placeId,
-            viewId: existingView.id,
-            viewName: existingView.name
-          });
-        }
-      });
-    });
-    
-    // Se ci sono logical place già in uso, mostra un avviso e interrompi la creazione
-    if (logicalPlacesInUse.length > 0) {
-      const duplicateMessages = logicalPlacesInUse.map(item => {
-        const logicalPlace = logicalPlaces.find(lp => lp.id === item.placeId);
-        return `La logical place "${logicalPlace?.name || item.placeId}" è già utilizzata nella view "${item.viewName}"`;
-      });
-      
-      alert(`Non è possibile creare la view perché alcune logical place sono già utilizzate in altre view:\n\n${duplicateMessages.join('\n')}`);
-      return;
-    }
 
     const newView: View = {
       id: `view-${Date.now()}`,
       name: newViewName.trim(),
-      description: `View created with ${selectedLogicalPlaces.length} logical place(s)`,
-      logicalPlaces: [...selectedLogicalPlaces]
+      logicalPlaces: selectedLogicalPlaces
     };
 
-    // Importante: usa l'aggiornamento funzionale
     setViews(prev => [...prev, newView]);
-
-    // Reset dopo la creazione
-    setNewViewName('');
+    setShowViewEditor(false);
     setSelectedLogicalPlaces([]);
-    setShowViewEditor(false); // Close modal
+    setNewViewName('');
   };
 
-  // Funzione per espandere/comprimere i dettagli di una place logica
-  const toggleLogicalPlaceExpansion = (logicalPlaceId: string) => {
-    setExpandedLogicalPlaces(prevExpanded => {
-        if (prevExpanded.includes(logicalPlaceId)) {
-          // Comprimi
-          return prevExpanded.filter(id => id !== logicalPlaceId);
-        } else {
-          // Espandi
-          return [...prevExpanded, logicalPlaceId];
+  // Funzione per ottenere tutti gli attributi unici dalle place fisiche di una view
+  const getUniqueAttributesForView = (viewId: string): string[] => {
+    const view = views.find(v => v.id === viewId);
+    if (!view) return [];
+
+    // Trova tutte le place logiche contenute nella view
+    const viewLogicalPlaces = logicalPlaces.filter(lp => 
+      view.logicalPlaces.includes(lp.id)
+    );
+
+    // Ottieni tutte le place fisiche dalle place logiche
+    const allPhysicalPlaces = viewLogicalPlaces.flatMap(lp => lp.physicalPlaces);
+
+    // Estrai tutti gli attributi unici
+    const uniqueAttributes = new Set<string>();
+    allPhysicalPlaces.forEach(place => {
+      Object.keys(place.attributes).forEach(attr => {
+        uniqueAttributes.add(attr);
+      });
+    });
+
+    return Array.from(uniqueAttributes);
+  };
+
+  // Funzione per impostare il tipo di aggregazione per un attributo in una view
+  const setViewAttributeAggregation = (viewId: string, attribute: string, aggregationType: 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null) => {
+    setViewAggregations(prev => {
+      const viewAggregation = prev[viewId] || {};
+      
+      // Se l'aggregazione è null, rimuovi l'attributo
+      if (aggregationType === null) {
+        const { [attribute]: _, ...rest } = viewAggregation;
+        return {
+          ...prev,
+          [viewId]: rest
+        };
+      }
+      
+      // Altrimenti, imposta il nuovo tipo di aggregazione
+      return {
+        ...prev,
+        [viewId]: {
+          ...viewAggregation,
+          [attribute]: aggregationType
         }
+      };
     });
   };
 
-  // Funzione per renderizzare una sezione di elementi con supporto per la selezione
-  const renderElementSection = (title: string, elements: Element[], showZone: boolean = false) => {
-    if (elements.length === 0 && !selectionMode) return null; // Don't render empty sections unless in selection mode
+  // Funzione per calcolare il valore aggregato per un attributo in una view
+  const calculateAggregatedValue = (viewId: string, attribute: string, aggregationType: 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT'): string => {
+    const view = views.find(v => v.id === viewId);
+    if (!view) return 'N/A';
 
-    return (
-      <div className="sidebar2-section">
-        <h3>{title}</h3>
-        {elements.length === 0 && selectionMode && <p className="text-muted small">No elements of this type to select.</p>}
-        <div className="sidebar2-items">
-          {elements.map(element => {
-            // Verifica se l'elemento è una place e se è selezionato
-            const isPlace = element.type === 'place';
-            const isSelected = isPlace && selectedPlaces.some(p => p.id === element.id);
-
-            return (
-              <div
-                key={`${element.id}-${refreshKey}`} // Include refreshKey if needed
-                className={`sidebar2-item
-                  ${hoveredElements.includes(element.id) ? 'hovered' : ''}
-                  ${isSelected ? 'selected' : ''}`}
-                onMouseEnter={() => highlightElement(element.id)}
-                onMouseLeave={unhighlightElement}
-                onClick={() => isPlace && togglePlaceSelection(element as Place)}
-                style={selectionMode && isPlace ? { cursor: 'pointer' } : {}}
-              >
-                <h6>
-                  {isPlace && selectionMode && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      readOnly // State managed by parent div click
-                      className="me-2"
-                      style={{ pointerEvents: 'none' }} // Prevent direct interaction
-                    />
-                  )}
-                  {element.id}
-                </h6>
-                {showZone && element.type === 'place' && element.attributes.zone && (
-                  <div className="sidebar2-attribute small">
-                    <span>zone: </span>
-                    {element.attributes.zone}
-                  </div>
-                )}
-                {element.type === 'edge' && (
-                  <div className="sidebar2-attribute small">
-                    <span>from: </span>
-                    {element.source}
-                    <span> to: </span>
-                    {element.target}
-                  </div>
-                )}
-                {Object.entries(element.attributes)
-                  .filter(([key]) => key !== 'zone' || !showZone) // Evita di mostrare zone due volte
-                  .map(([key, value]) => (
-                    <div key={`${element.id}-${key}`} className="sidebar2-attribute small">
-                      <span>{key}: </span>
-                      {value}
-                    </div>
-                  ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Funzione per renderizzare una sezione di stanze disponibili (Potentially deprecated)
-  const renderAvailableRoomsSection = (title: string, elements: Place[], type: string) => {
-    const filteredRooms = elements.filter(room =>
-      room.attributes.type?.toLowerCase() === type.toLowerCase() ||
-      room.id.toLowerCase().includes(type.toLowerCase())
+    // Trova tutte le place logiche contenute nella view
+    const viewLogicalPlaces = logicalPlaces.filter(lp => 
+      view.logicalPlaces.includes(lp.id)
     );
 
-    if (filteredRooms.length === 0) return null;
+    // Ottieni tutte le place fisiche dalle place logiche
+    const allPhysicalPlaces = viewLogicalPlaces.flatMap(lp => lp.physicalPlaces);
 
-    return (
-      <div className="sidebar2-section">
-        <h3>{title}</h3>
-        <div className="sidebar2-items">
-          <div className="sidebar2-available">
-            <span>available: </span>
-            {filteredRooms.length}
-          </div>
-          {filteredRooms.map(room => {
-            const isSelected = selectedPlaces.some(p => p.id === room.id);
+    // Filtra le place che hanno l'attributo specificato e converti i valori in numeri
+    const attributeValues = allPhysicalPlaces
+      .map(place => place.attributes[attribute])
+      .filter(value => value !== undefined)
+      .map(value => Number(value))
+      .filter(value => !isNaN(value));
 
-            return (
-              <div
-                key={`${room.id}-${refreshKey}`} // Include refreshKey if needed
-                className={`sidebar2-item
-                  ${hoveredElements.includes(room.id) ? 'hovered' : ''}
-                  ${isSelected ? 'selected' : ''}`}
-                onMouseEnter={() => highlightElement(room.id)}
-                onMouseLeave={unhighlightElement}
-                onClick={() => togglePlaceSelection(room)}
-                style={selectionMode ? { cursor: 'pointer' } : {}}
-              >
-                <h6>
-                  {selectionMode && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      readOnly
-                      className="me-2"
-                      style={{ pointerEvents: 'none' }}
-                    />
-                  )}
-                  {room.id}
-                </h6>
-                {room.attributes.zone && (
-                  <div className="sidebar2-attribute small">
-                    <span>zone: </span>
-                    {room.attributes.zone}
-                  </div>
-                )}
-                {Object.entries(room.attributes)
-                  .filter(([key]) => key !== 'zone') // Evita di mostrare zone due volte
-                  .map(([key, value]) => (
-                    <div key={`${room.id}-${key}`} className="sidebar2-attribute small">
-                      <span>{key}: </span>
-                      {value}
-                    </div>
-                  ))}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+    if (attributeValues.length === 0) return 'N/A';
 
-  // *** ADDED: Aggregation Helper Functions ***
-  const isNumeric = (value: string): boolean => {
-    if (typeof value !== 'string' || value.trim() === '') return false;
-    // Allow numbers with commas as decimal separators for robustness, replace before parsing
-    const normalizedValue = value.replace(',', '.');
-    return !isNaN(parseFloat(normalizedValue)) && isFinite(Number(normalizedValue));
-  };
-
-  const calculateAggregation = (values: string[], func: 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT'): number | string => {
-    const numericValues = values
-        .map(v => typeof v === 'string' ? v.replace(',', '.') : v) // Normalize commas
-        .map(v => parseFloat(v as string))
-        .filter(n => !isNaN(n) && isFinite(n));
-
-    if (func === 'COUNT') {
-      // Count all original non-empty/null values provided
-      return values.filter(v => v != null && v !== '').length;
-    }
-
-    if (numericValues.length === 0) {
-      return 'N/A'; // No numeric values to aggregate
-    }
-
-    let result: number;
-    switch (func) {
+    switch (aggregationType) {
       case 'MAX':
-        result = Math.max(...numericValues);
-        break;
+        return Math.max(...attributeValues).toString();
       case 'MIN':
-        result = Math.min(...numericValues);
-        break;
-      case 'SUM':
-        result = numericValues.reduce((sum, current) => sum + current, 0);
-        break;
+        return Math.min(...attributeValues).toString();
       case 'AVG':
-        const sum = numericValues.reduce((s, c) => s + c, 0);
-        result = sum / numericValues.length;
-        break;
+        return (attributeValues.reduce((sum, val) => sum + val, 0) / attributeValues.length).toFixed(2);
+      case 'SUM':
+        return attributeValues.reduce((sum, val) => sum + val, 0).toString();
+      case 'COUNT':
+        return attributeValues.length.toString();
       default:
-        return 'N/A'; // Should not happen
+        return 'N/A';
     }
-    // Format result to a reasonable number of decimal places, e.g., 2
-    return Number.isInteger(result) ? result : result.toFixed(2);
   };
-  // *** End Aggregation Helper Functions ***
 
+  // Funzione per renderizzare un elemento generico (place o edge)
+  const renderElementSection = (title: string, elements: Element[]) => {
+    if (elements.length === 0) return null;
 
-  // Renderizza la sezione delle place logiche (MODIFIED with Aggregation)
+    return (
+      <div className="sidebar2-section">
+        <h3>{title}</h3>
+        <div className="sidebar2-items">
+          {elements.map(element => (
+            <div
+              key={`${element.id}-${refreshKey}`}
+              className={`sidebar2-item ${hoveredElements.includes(element.id) ? 'hovered' : ''}`}
+              onMouseEnter={() => highlightElement(element.id)}
+              onMouseLeave={unhighlightElement}
+            >
+              <h6>{element.id}</h6>
+              {element.type === 'place' && Object.entries(element.attributes).map(([key, value]) => (
+                <div key={`${key}-${refreshKey}`} className="sidebar2-attribute small">
+                  <span>{key}: </span>
+                  {value}
+                </div>
+              ))}
+              {element.type === 'edge' && (
+                <>
+                  <div className="sidebar2-attribute small">
+                    <span>Source: </span>
+                    {(element as Edge).source}
+                  </div>
+                  <div className="sidebar2-attribute small">
+                    <span>Target: </span>
+                    {(element as Edge).target}
+                  </div>
+                  {Object.entries((element as Edge).attributes).map(([key, value]) => (
+                    <div key={`${key}-${refreshKey}`} className="sidebar2-attribute small">
+                      <span>{key}: </span>
+                      {value}
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizza la sezione delle place logiche
   const renderLogicalPlacesSection = () => {
     return (
       <div className="sidebar2-section logical-places-section">
         <div className="d-flex justify-content-between align-items-center mb-2">
-          <h3>Logical Places</h3>
-          <div>
+          <h3 className="mb-0">Logical Places</h3>
+          <div className="btn-group">
             <button
-              className="btn btn-sm btn-outline-primary me-2"
-              title="Create New Logical Place Manually"
+              className="btn btn-sm btn-outline-primary"
               onClick={() => setShowLogicalPlaceEditor(true)}
+              title="Create a new logical place by selecting physical places"
             >
               + New LP
             </button>
             <button
-              className="btn btn-sm btn-outline-success"
-              title="Create New View"
+              className="btn btn-sm btn-outline-primary"
               onClick={() => setShowViewEditor(true)}
+              title="Create a new view from logical places"
             >
               + New View
             </button>
@@ -830,101 +695,36 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
         </div>
 
         {logicalPlaces.length === 0 ? (
-          <p className="text-muted small">No logical places defined yet. Create one from the sidebar on the left or manually using '+ New LP'.</p>
+          <div className="sidebar2-empty-state">
+            <p className="text-muted">No logical places defined yet.</p>
+            <p className="text-muted small">Create logical places to group physical places based on conditions or manual selection.</p>
+          </div>
         ) : (
           <div className="sidebar2-items">
             {logicalPlaces.map(logicalPlace => {
               const isExpanded = expandedLogicalPlaces.includes(logicalPlace.id);
-              const isSelectedForView = showViewEditor && selectedLogicalPlaces.includes(logicalPlace.id);
-
-              // *** ADDED: Aggregation Data Preparation ***
-              const attributesSummary: Record<string, { values: string[], isNumeric: boolean, count: number }> = {};
-              let totalPlaces = 0;
-              if (logicalPlace.physicalPlaces) { // Ensure physicalPlaces exists
-                  totalPlaces = logicalPlace.physicalPlaces.length;
-                  logicalPlace.physicalPlaces.forEach(place => {
-                    if (place && place.attributes) { // Ensure place and attributes exist
-                        Object.entries(place.attributes).forEach(([key, value]) => {
-                          if (value == null || value === '') return; // Skip empty/null attributes
-
-                          if (!attributesSummary[key]) {
-                            attributesSummary[key] = { values: [], isNumeric: true, count: 0 };
-                          }
-                          attributesSummary[key].values.push(value);
-                          attributesSummary[key].count++;
-                          // If *any* value for this key across all places is not numeric, mark the whole attribute as non-numeric
-                          if (attributesSummary[key].isNumeric && !isNumeric(value)) {
-                            attributesSummary[key].isNumeric = false;
-                          }
-                        });
-                    }
-                  });
-                  // Ensure isNumeric is false if not all places have the attribute
-                  Object.keys(attributesSummary).forEach(key => {
-                      if (attributesSummary[key].count < totalPlaces) {
-                          // If an attribute doesn't exist in all places, treat it as non-numeric for aggregation consistency
-                          // Or decide on another handling strategy (e.g., ignore missing for AVG/SUM)
-                          // For simplicity, let's mark as non-numeric for now if missing in some places.
-                          // attributesSummary[key].isNumeric = false; // Revisit this logic if needed
-                      }
-                      // Re-check numeric status based on all collected values
-                      if (attributesSummary[key].isNumeric) {
-                          attributesSummary[key].isNumeric = attributesSummary[key].values.every(isNumeric);
-                      }
-                  });
-              }
-              // *** End Aggregation Data Preparation ***
-
-              // *** ADDED: Handle Aggregation Change ***
-              const handleAggregationChange = (attributeName: string, func: 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null) => {
-                setViewAggregations(prev => ({
-                  ...prev,
-                  [logicalPlace.id]: {
-                    ...(prev[logicalPlace.id] || {}),
-                    [attributeName]: {
-                      ...((prev[logicalPlace.id]?.[attributeName]) || {}),
-                      // Use a fixed key, e.g. 'default', or use logicalPlace.id as key if you want per-logicalPlace/attribute aggregation
-                      default: func,
-                    },
-                  },
-                }));
-              };
+              const physicalPlaceIds = logicalPlace.physicalPlaces.map(p => p.id);
 
               return (
                 <div
-                  key={`${logicalPlace.id}-${refreshKey}`} // Use refreshKey if needed
-                  className={`sidebar2-logical-place mb-2 p-2 border rounded ${isSelectedForView ? 'selected-for-view' : ''}`}
-                  onMouseEnter={() => logicalPlace.physicalPlaces && highlightMultipleElements(logicalPlace.physicalPlaces.map(p => p.id))}
+                  key={`${logicalPlace.id}-${refreshKey}`}
+                  className="sidebar2-logical-place mb-2 p-2 border rounded"
+                  onMouseEnter={() => highlightMultipleElements(physicalPlaceIds)}
                   onMouseLeave={unhighlightElement}
-                  onClick={() => showViewEditor && toggleLogicalPlaceSelection(logicalPlace.id)}
-                  style={showViewEditor ? { cursor: 'pointer' } : {}}
                 >
                   <div className="sidebar2-logical-place-header d-flex justify-content-between align-items-center">
-                    <div className="d-flex align-items-center">
-                      {showViewEditor && (
-                        <input
-                          type="checkbox"
-                          checked={isSelectedForView}
-                          readOnly
-                          className="me-2 form-check-input" // Added Bootstrap class
-                          style={{ pointerEvents: 'none' }} // Prevent direct interaction
-                          onClick={(e) => e.stopPropagation()} // Prevent container click
-                        />
-                      )}
-                      <h6 className="mb-0">{logicalPlace.name} <span className="badge bg-light text-dark ms-1">{totalPlaces} place(s)</span></h6>
-                      {/* Expansion button restored */}
+                    <h6 className="mb-0">{logicalPlace.name}</h6>
+                    <div className="sidebar2-logical-place-actions">
                       <button
-                        className="btn btn-sm btn-link ms-2"
+                        className="btn btn-sm btn-outline-secondary me-1"
+                        title={isExpanded ? "Collapse" : "Expand"}
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleLogicalPlaceExpansion(logicalPlace.id);
                         }}
-                        title={isExpanded ? 'Collapse Details' : 'Expand Details'}
                       >
-                        {isExpanded ? '▼' : '►'}
+                        {isExpanded ? "▲" : "▼"}
                       </button>
-                    </div>
-                    <div className="sidebar2-logical-place-actions">
                       <button
                         className="btn btn-sm btn-outline-danger"
                         title="Delete Logical Place"
@@ -938,70 +738,25 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                     </div>
                   </div>
 
-                  {logicalPlace.description && (
-                    <div className="sidebar2-logical-place-description small text-muted mt-1">
-                      {logicalPlace.description}
-                    </div>
-                  )}
-
-                  {/* *** ADDED: Display Aggregated Attributes *** */}
-                  <div className="sidebar2-logical-place-attributes-summary mt-2">
-                    {Object.entries(attributesSummary).length === 0 ? (
-                        <p className="text-muted small fst-italic">No common attributes found in physical places.</p>
+                  <div className="sidebar2-logical-place-info small text-muted mt-1">
+                    {logicalPlace.conditions.length === 0 ? (
+                      <span>Place logica creata manualmente</span>
                     ) : (
-                        <div className="list-group list-group-flush small">
-                            {Object.entries(attributesSummary).map(([attrName, summary]) => {
-                                // Fix: selectedFunc should be a string or null, not an object.
-                                // If your viewAggregations structure is Record<string, Record<string, Record<string, 'MAX' | ... | null>>>
-                                // and you want the default aggregation, extract it:
-                                const selectedFunc = (viewAggregations[logicalPlace.id]?.[attrName]?.default ?? null) as 'MAX' | 'MIN' | 'AVG' | 'SUM' | 'COUNT' | null;
-                                // Aggregate numeric attributes present in at least one place. COUNT works always.
-                                const canAggregateNumeric = summary.isNumeric && summary.values.length > 0;
-                                const showAggregationControls = canAggregateNumeric || attrName === 'posti'; // Always allow aggregation for 'posti' as requested? Or check if numeric? Let's stick to numeric check.
-                                                                                                            // Let's enable for numeric attributes found in >= 1 place.
-                                const enableAggregation = summary.isNumeric && summary.values.length > 0;
-
-
-                                return (
-                                    <div key={attrName} className="list-group-item d-flex justify-content-between align-items-center p-1 border-0">
-                                        <div className="flex-grow-1 me-2">
-                                            <span className="fw-bold">{attrName}:</span>
-                                            {enableAggregation && selectedFunc ? (
-                                                <span className="ms-1 badge bg-primary">{selectedFunc} = {calculateAggregation(summary.values, selectedFunc)}</span>
-                                            ) : (
-                                                // Show unique values if not aggregating or not possible, limit display
-                                                <span className="ms-1 text-muted fst-italic">
-                                                    {[...new Set(summary.values)].slice(0, 3).join(', ')}
-                                                    {summary.values.length > 3 ? '...' : ''}
-                                                    {!summary.isNumeric && summary.values.length > 0 ? ' (Text)' : ''}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {enableAggregation && (
-                                            <div className="btn-group btn-group-sm" role="group" aria-label={`Aggregation for ${attrName}`}>
-                                                {(['SUM', 'AVG', 'MAX', 'MIN', 'COUNT'] as const).map(func => (
-                                                    <button
-                                                        key={func}
-                                                        type="button"
-                                                        className={`btn btn-outline-secondary p-1 ${selectedFunc === func ? 'active' : ''}`}
-                                                        onClick={(e) => { e.stopPropagation(); handleAggregationChange(attrName, selectedFunc === func ? null : func); }}
-                                                        onMouseEnter={(e) => e.stopPropagation()} // Prevent parent mouseEnter/Leave
-                                                        onMouseLeave={(e) => e.stopPropagation()} // Prevent parent mouseEnter/Leave
-                                                        title={func}
-                                                        style={{fontSize: '0.7rem', lineHeight: '1'}} // Smaller buttons
-                                                    >
-                                                        {func.substring(0,3)}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
+                      <span>Place logica creata dall'espressione: {logicalPlace.name}</span>
                     )}
                   </div>
-                  {/* *** End Aggregated Attributes *** */}
+
+                  {/* Mostra le condizioni se presenti */}
+                  {logicalPlace.conditions.length > 0 && (
+                    <div className="sidebar2-logical-place-conditions small mt-1">
+                      <strong>{logicalPlace.name}:</strong> {logicalPlace.conditions.map((condition, index) => (
+                        <span key={index}>
+                          {index > 0 && <span> {logicalPlace.operator} </span>}
+                          {condition.attribute} {condition.operator} {condition.value}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Display Physical Places (conditionally based on expansion) */}
                   {isExpanded && (
@@ -1106,7 +861,7 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
               <div className="modal-content">
                 <div className="modal-header">
                   <h5 className="modal-title">Create View</h5>
-                  <button type="button" className="btn-close" onClick={() => { setShowViewEditor(false); setSelectedLogicalPlaces([]); /*setSelectedAttributes([]);*/ }}></button>
+                  <button type="button" className="btn-close" onClick={() => { setShowViewEditor(false); setSelectedLogicalPlaces([]); }}></button>
                 </div>
                 <div className="modal-body">
                   <div className="mb-3">
@@ -1146,12 +901,9 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                       )}
                     </div>
                   </div>
-
-                   {/* Select Attributes to Aggregate (Optional - DEPRECATED) */}
-
                 </div>
                 <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => { setShowViewEditor(false); setSelectedLogicalPlaces([]); /*setSelectedAttributes([]);*/ }}>Cancel</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => { setShowViewEditor(false); setSelectedLogicalPlaces([]); }}>Cancel</button>
                   <button
                     type="button"
                     className="btn btn-primary"
@@ -1168,8 +920,6 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
       </div> // End logical-places-section
     );
   };
-
-
 
   // Renderizza la sezione delle views
   const renderViewsSection = () => {
@@ -1192,6 +942,9 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
 
             // Rimuovi duplicati
             const uniquePhysicalPlaceIds = [...new Set(allPhysicalPlaceIds)];
+
+            // Ottieni tutti gli attributi unici per questa view
+            const uniqueAttributes = getUniqueAttributesForView(view.id);
 
             return (
               <div
@@ -1236,26 +989,73 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
                   </div>
                 </div>
 
-                {/* Aggregation display in views is removed as it's now per Logical Place */}
-                {/* {view.aggregatedAttributes && view.aggregatedAttributes.length > 0 && (...) } */}
+                {/* Aggregation buttons and results for views */}
+                {uniqueAttributes.length > 0 && (
+                  <div className="sidebar2-view-aggregations mt-2">
+                    <strong>Aggregations:</strong>
+                    <div className="sidebar2-view-aggregations-list small">
+                      {uniqueAttributes.map(attribute => {
+                        const currentAggregation = viewAggregations[view.id]?.[attribute];
+                        
+                        return (
+                          <div 
+                            key={`${view.id}-${attribute}-${refreshKey}`} 
+                            className="sidebar2-view-aggregation-item mt-1"
+                          >
+                            <div className="d-flex align-items-center">
+                              <span className="me-2">{attribute}:</span>
+                              <div className="btn-group btn-group-sm">
+                                <button 
+                                  className={`btn btn-sm ${currentAggregation === 'SUM' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                  onClick={() => setViewAttributeAggregation(view.id, attribute, currentAggregation === 'SUM' ? null : 'SUM')}
+                                >
+                                  SUM
+                                </button>
+                                <button 
+                                  className={`btn btn-sm ${currentAggregation === 'AVG' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                  onClick={() => setViewAttributeAggregation(view.id, attribute, currentAggregation === 'AVG' ? null : 'AVG')}
+                                >
+                                  AVG
+                                </button>
+                                <button 
+                                  className={`btn btn-sm ${currentAggregation === 'MAX' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                  onClick={() => setViewAttributeAggregation(view.id, attribute, currentAggregation === 'MAX' ? null : 'MAX')}
+                                >
+                                  MAX
+                                </button>
+                                <button 
+                                  className={`btn btn-sm ${currentAggregation === 'MIN' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                  onClick={() => setViewAttributeAggregation(view.id, attribute, currentAggregation === 'MIN' ? null : 'MIN')}
+                                >
+                                  MIN
+                                </button>
+                                <button 
+                                  className={`btn btn-sm ${currentAggregation === 'COUNT' ? 'btn-primary' : 'btn-outline-secondary'}`}
+                                  onClick={() => setViewAttributeAggregation(view.id, attribute, currentAggregation === 'COUNT' ? null : 'COUNT')}
+                                >
+                                  CC
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* Mostra il risultato dell'aggregazione se è selezionata */}
+                            {currentAggregation && (
+                              <div className="sidebar2-view-aggregation-result mt-1 ps-2">
+                                <strong>{currentAggregation}:</strong> {calculateAggregatedValue(view.id, attribute, currentAggregation)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       </div>
     );
-  };
-
-  // Renderizza l'interfaccia per la creazione manuale di place logiche (MODIFIED - Now uses Modal)
-  const renderManualSelectionInterface = () => {
-      // This is now handled by the modal triggered from renderLogicalPlacesSection
-      return null;
-  };
-
-  // Renderizza l'interfaccia per la creazione di views (MODIFIED - Now uses Modal)
-  const renderViewCreationInterface = () => {
-      // This is now handled by the modal triggered from renderLogicalPlacesSection
-      return null;
   };
 
   // Mostra sempre la sezione Places anche se vuota, per debug o selection mode
@@ -1331,35 +1131,30 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     <>
       {renderToggleButton()}
       <div className={`sidebar2 ${!isVisible ? 'sidebar2-hidden' : ''}`}>
-  <div className="sidebar2-header mb-2">
-    <h3 className="mb-1 text-nowrap">Map Elements</h3>
-    <button
-      className="sidebar2-refresh-button btn btn-sm btn-outline-secondary"
-      onClick={fetchElements}
-      title="Refresh elements from map"
-    >
-      Update Elements 🔄
-    </button>
-  </div>
-
-
+        <div className="sidebar2-header mb-2">
+          <h3 className="mb-1 text-nowrap">Map Elements</h3>
+          <button
+            className="sidebar2-refresh-button btn btn-sm btn-outline-secondary"
+            onClick={fetchElements}
+            title="Refresh elements from map"
+          >
+            Update Elements 🔄
+          </button>
+        </div>
 
         {/* Main Content Sections */} 
         {renderViewsSection()}
         {renderLogicalPlacesSection()} 
 
-         {/* Conditionally render physical places list only if in selection mode */}
+        {/* Conditionally render physical places list only if in selection mode */}
         {selectionMode && debugPlaces}
 
         {/* Render other sections */}
-       
         {renderElementSection("Places", places)}
         {renderElementSection("Edges", edges)}
-
       </div>
     </>
   );
 };
 
 export default Sidebar2;
-
