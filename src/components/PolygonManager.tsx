@@ -1,4 +1,4 @@
-import { Draw, Select } from "ol/interaction";
+import { Draw, Select, Snap} from "ol/interaction";
 import Polygon from 'ol/geom/Polygon.js';
 import Feature from 'ol/Feature.js';
 import Geometry from 'ol/geom/Geometry.js';
@@ -9,6 +9,7 @@ import { Vector as VectorSource } from 'ol/source.js';
 import { Vector as VectorLayer } from 'ol/layer.js';
 import Map from 'ol/Map.js';
 import { intersects } from 'ol/extent.js';
+
 
 // Definizione delle interfacce
 interface PlaceAttributes {
@@ -66,6 +67,7 @@ class PolygonManager {
   private drawInteraction: Draw | null = null;
   private selectInteraction: Select | null = null;
   private selectedPolygon: Feature<Geometry> | null = null;
+  private snapInteraction: Snap | null = null;
   private updateSidebarElements: () => void;
   private addToHistory: (type: string, feature: Feature<Geometry>) => void;
 
@@ -80,6 +82,9 @@ class PolygonManager {
       source: this.placeSource,
       style: placeStyle,
       zIndex: 1
+    });
+    this.snapInteraction = new Snap({      
+    source: this.placeSource
     });
 
     // Aggiungi il layer alla mappa
@@ -199,6 +204,12 @@ class PolygonManager {
     
     // Aggiungi interazione alla mappa
     this.map.addInteraction(this.drawInteraction);
+
+     // ➕ Aggiungi l'interazione di snap
+  this.snapInteraction = new Snap({
+    source: this.placeSource
+  });
+  this.map.addInteraction(this.snapInteraction);
     
     // Gestisci l'evento di fine disegno
     this.drawInteraction.on('drawend', (event) => {
@@ -301,6 +312,10 @@ class PolygonManager {
       this.map.removeInteraction(this.selectInteraction);
       this.selectInteraction = null;
     }
+    if (this.snapInteraction) {
+    this.map.removeInteraction(this.snapInteraction);
+    this.snapInteraction = null;
+  }
   }
 
   // Funzione per annullare l'ultimo punto disegnato
