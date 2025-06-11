@@ -99,8 +99,9 @@ class EdgeManager {
 
   // Funzione per attivare la modalità di disegno degli archi
   activateDrawEdge(): void {
-    // Rimuovi interazioni precedenti
-    this.removeInteractions();
+    // Rimuovi interazioni precedenti da tutti i manager
+    (window as any).polygonManager.removeInteractions(); // Rimuove l'interazione di disegno dei poligoni
+    this.removeInteractions(); // Rimuove le interazioni di EdgeManager
     
     // Crea nuova interazione per selezionare poligoni
     this.selectInteraction = new Select({
