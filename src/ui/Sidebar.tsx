@@ -71,7 +71,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   
   // Funzione per aggiornare gli elementi dalla mappa
-  const updateElements = (newElements: Element[]) => {
+  const updateElements = (newElements: Element[], newSelectedElement?: Element | null) => {
     setElements(newElements);
     
     // Aggiorna anche gli elementi filtrati se un filtro è attivo
@@ -84,8 +84,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       setFilteredElements(newElements);
     }
     
-    // Se l'elemento selezionato è stato aggiornato, aggiorna anche quello
-    if (selectedElement) {
+    // Se viene passato un nuovo elemento selezionato, aggiornalo
+    if (newSelectedElement !== undefined) {
+      setSelectedElement(newSelectedElement);
+      if (newSelectedElement) {
+        setNewElementId(newSelectedElement.id);
+      } else {
+        setNewElementId('');
+      }
+    } else if (selectedElement) {
+      // Se l'elemento selezionato è stato aggiornato, aggiorna anche quello
       const updatedSelectedElement = newElements.find(el => el.id === selectedElement.id);
       if (updatedSelectedElement) {
         setSelectedElement(updatedSelectedElement);
@@ -256,6 +264,12 @@ const Sidebar: React.FC<SidebarProps> = ({
     // Applica eventuali rinomina in sospeso prima di cambiare modalità
     applyPendingRename();
     
+    // Disattiva la modalità di selezione prima di attivare il disegno
+    const selectionManager = (window as any).selectionManager;
+    if (selectionManager && typeof selectionManager.deactivateSelection === 'function') {
+      selectionManager.deactivateSelection();
+    }
+    
     setActiveButton('polygon');
     onDrawPolygon();
   };
@@ -263,6 +277,12 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleDrawEdge = () => {
     // Applica eventuali rinomina in sospeso prima di cambiare modalità
     applyPendingRename();
+    
+    // Disattiva la modalità di selezione prima di attivare il disegno
+    const selectionManager = (window as any).selectionManager;
+    if (selectionManager && typeof selectionManager.deactivateSelection === 'function') {
+      selectionManager.deactivateSelection();
+    }
     
     setActiveButton('edge');
     onDrawEdge();
@@ -295,24 +315,6 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (selectedElement && newElementId && newElementId !== selectedElement.id) {
       console.log('Applicazione rinomina prima del cambio:', selectedElement.id, '->', newElementId);
       onRenameElement(newElementId);
-    }
-  };
-
-  const handleElementSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    // Applica eventuali rinomina in sospeso prima di cambiare selezione
-    applyPendingRename();
-    
-    const elementId = event.target.value;
-    if (!elementId) {
-      setSelectedElement(null);
-      setNewElementId('');
-      return;
-    }
-
-    const element = elements.find(el => el.id === elementId) || null;
-    setSelectedElement(element);
-    if (element) {
-      setNewElementId(element.id);
     }
   };
 
@@ -618,140 +620,105 @@ const Sidebar: React.FC<SidebarProps> = ({
         
         <div className="attribute-panel">
           <h5>Attributes</h5>
-          <div className="mb-3">
-            <label htmlFor="elementSelector" className="form-label">Select Item</label>
-            <select 
-              id="elementSelector" 
-              className="form-select" 
-              value={selectedElement?.id || ''}
-              onChange={handleElementSelect}
-            >
-              <option value="">Select an element</option>
-              
-              {(isFilterActive ? filteredElements : elements).length > 0 && (
-                <>
-                  <optgroup label="Places">
-                    {(isFilterActive ? filteredElements : elements)
-                      .filter(el => el.type === 'place')
-                      .map(place => (
-                        <option key={place.id} value={place.id}>
-                          {place.id}
-                        </option>
-                      ))}
-                  </optgroup>
-                  
-                  {(isFilterActive ? filteredElements : elements).filter(el => el.type === 'edge').length > 0 && (
-                    <optgroup label="Edges">
-                      {(isFilterActive ? filteredElements : elements)
-                        .filter(el => el.type === 'edge')
-                        .map(edge => (
-                          <option key={edge.id} value={edge.id}>
-                            Edge: {edge.source} → {edge.target}
-                          </option>
-                        ))}
-                    </optgroup>
-                  )}
-                </>
-              )}
-            </select>
-          </div>
           
-          {selectedElement ? (
-            <div className="attributes-container">
-              <h5>
-                {selectedElement.type === 'place' 
-                  ? 'Attributes of the Place' 
-                  : 'Attributes of the Edge'}
-                <span className={`element-type-badge element-type-${selectedElement.type}`}>
-                  {selectedElement.type === 'place' ? 'Place' : 'Edge'}
-                </span>
-              </h5>
-              
-              <div className="element-id-editor">
-                <label htmlFor="elementId" className="form-label">ID Element</label>
-                <div className="input-group">
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    id="elementId"
-                    value={newElementId}
-                    onChange={(e) => setNewElementId(e.target.value)}
-                    placeholder="Enter a new ID"
-                  />
-                  <button 
-                    className="btn btn-outline-primary" 
-                    type="button"
-                    onClick={handleRenameElement}
-                    disabled={!newElementId.trim() || newElementId === selectedElement.id}
-                  >
-                    Rename
-                  </button>
+          <div className="attributes-container">
+            <h5>
+              Attributes of the Place
+              <span className="element-type-badge element-type-place">
+                Place
+              </span>
+            </h5>
+            
+            {selectedElement && selectedElement.type === 'place' ? (
+              <>
+                <div className="element-id-editor">
+                  <label htmlFor="elementId" className="form-label">ID Element</label>
+                  <div className="input-group">
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      id="elementId"
+                      value={newElementId}
+                      onChange={(e) => setNewElementId(e.target.value)}
+                      placeholder="Enter a new ID"
+                    />
+                    <button 
+                      className="btn btn-outline-primary" 
+                      type="button"
+                      onClick={handleRenameElement}
+                      disabled={!newElementId.trim() || newElementId === selectedElement.id}
+                    >
+                      Rename
+                    </button>
+                  </div>
                 </div>
-              </div>
-              
-              {Object.keys(selectedElement.attributes).length > 0 ? (
-                <table className="attributes-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Value</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(selectedElement.attributes).map(([name, value]) => (
-                      <tr key={name}>
-                        <td>{name}</td>
-                        <td>{value}</td>
-                        <td>
-                          <button 
-                            className="btn btn-sm btn-danger"
-                            onClick={() => handleRemoveAttribute(name)}
-                          >
-                            Delete
-                          </button>
-                        </td>
+                
+                {Object.keys(selectedElement.attributes).length > 0 ? (
+                  <table className="attributes-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No attribute present</p>
-              )}
-              
-              <div className="row g-2 mb-3">
-                <div className="col">
-                  <input 
-                    type="text" 
-                    className="form-control form-control-sm" 
-                    placeholder="Name"
-                    value={newAttributeName}
-                    onChange={(e) => setNewAttributeName(e.target.value)}
-                  />
+                    </thead>
+                    <tbody>
+                      {Object.entries(selectedElement.attributes).map(([name, value]) => (
+                        <tr key={name}>
+                          <td>{name}</td>
+                          <td>{value}</td>
+                          <td>
+                            <button 
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleRemoveAttribute(name)}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No attribute present</p>
+                )}
+                
+                <div className="row g-2 mb-3">
+                  <div className="col">
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm" 
+                      placeholder="Name"
+                      value={newAttributeName}
+                      onChange={(e) => setNewAttributeName(e.target.value)}
+                    />
+                  </div>
+                  <div className="col">
+                    <input 
+                      type="text" 
+                      className="form-control form-control-sm" 
+                      placeholder="Value"
+                      value={newAttributeValue}
+                      onChange={(e) => setNewAttributeValue(e.target.value)}
+                    />
+                  </div>
+                  <div className="col-auto">
+                    <button 
+                      className="btn btn-sm btn-primary"
+                      onClick={handleAddAttribute}
+                      disabled={!newAttributeName.trim() || !newAttributeValue.trim()}
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
-                <div className="col">
-                  <input 
-                    type="text" 
-                    className="form-control form-control-sm" 
-                    placeholder="Value"
-                    value={newAttributeValue}
-                    onChange={(e) => setNewAttributeValue(e.target.value)}
-                  />
-                </div>
-                <div className="col-auto">
-                  <button 
-                    className="btn btn-sm btn-primary"
-                    onClick={handleAddAttribute}
-                    disabled={!newAttributeName.trim() || !newAttributeValue.trim()}
-                  >
-                    Add
-                  </button>
-                </div>
+              </>
+            ) : (
+              <div className="no-selection-message">
+                <p>Select a place using the "Select Item" button to view and edit its attributes.</p>
               </div>
-            </div>
-          ) : (
-            <p>Select an item to view attributes</p>
-          )}
+            )}
+          </div>
         </div>
         
         <div className="mt-4">

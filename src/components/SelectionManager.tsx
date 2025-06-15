@@ -131,6 +131,22 @@ class SelectionManager {
     });
   }
 
+  // Funzione per disattivare la modalità di selezione
+  deactivateSelection(): void {
+    // Rimuovi l'interazione di selezione se esiste
+    if (this.selectInteraction) {
+      this.map.removeInteraction(this.selectInteraction);
+      this.selectInteraction = null;
+    }
+    
+    // Deseleziona l'elemento corrente
+    this.selectedElement = null;
+    this.polygonManager.setSelectedPolygon(null);
+    this.edgeManager.setSelectedEdge(null);
+    
+    console.log('Modalità di selezione disattivata');
+  }
+
   // Funzione per eliminare l'elemento selezionato (poligono o arco)
   deleteSelectedElement(): boolean {
     if (!this.selectedElement) {

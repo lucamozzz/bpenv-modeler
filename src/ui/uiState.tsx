@@ -72,8 +72,9 @@ export function updateSidebar2(): void {
 export function updateSidebarElements(): void {
   const polygonManager = (window as any).polygonManager;
   const edgeManager = (window as any).edgeManager;
+  const selectionManager = (window as any).selectionManager;
 
-  if (!polygonManager || !edgeManager) return;
+  if (!polygonManager || !edgeManager || !selectionManager) return;
 
   const placeFeatures = polygonManager.getPlaceSource().getFeatures();
   const edgeFeatures = edgeManager.getEdgeSource().getFeatures();
@@ -93,9 +94,18 @@ export function updateSidebarElements(): void {
     })),
   ];
 
-  // Aggiorna entrambe le sidebar
+  // Ottieni l'elemento selezionato corrente
+  const selectedFeature = selectionManager.getSelectedElement();
+  let selectedElement = null;
+  
+  if (selectedFeature) {
+    const selectedId = selectedFeature.get('id');
+    selectedElement = elements.find(el => el.id === selectedId);
+  }
+
+  // Aggiorna entrambe le sidebar con gli elementi e l'elemento selezionato
   if (typeof (window as any).updateSidebarElements === 'function') {
-    (window as any).updateSidebarElements(elements);
+    (window as any).updateSidebarElements(elements, selectedElement);
   }
   
   if (typeof (window as any).updateSidebar2Elements === 'function') {
