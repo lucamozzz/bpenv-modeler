@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import "./Sidebar2.css";
+import "../style.css";
 
 interface Sidebar2Props {
   // Non sono necessarie props specifiche poiché la sidebar si aggiorna automaticamente
