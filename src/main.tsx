@@ -16,13 +16,7 @@ import { updateUIState, updateSidebar, updateSidebar2 } from './ui/uiState';
 import { exportModel } from './utils/exporter';
 import { handleFileUpload, importModel } from './utils/importer';
 
-type BPEnvModeler = {
-  render: () => void;
-  getPlaces: () => any[];
-  getEdges: () => any[];
-  getLogicalPlaces: () => any[];
-  getViews: () => any[];
-}
+let apis: any = null;
 
 function render(containerId: string) {
   const container = document.getElementById(containerId);
@@ -95,35 +89,38 @@ function render(containerId: string) {
 
   (window as any).triggerFileInput = () => fileInput.click();
 
-  function getPlaces(): any[] {
-    return [];
-  }
-
-  function getEdges(): any[] {
-    return [];
-  }
-
-  function getLogicalPlaces(): any[] {
-    return [];
-  }
-
-  function getViews(): any[] {
-    return [];
-  }
-
-  return {
+  apis = {
     getPlaces,
     getEdges,
     getLogicalPlaces,
     getViews,
   };
+
+  return apis;
+}
+
+function getPlaces(): any[] {
+  return [];
+}
+
+function getEdges(): any[] {
+  return [];
+}
+
+function getLogicalPlaces(): any[] {
+  return [];
+}
+
+function getViews(): any[] {
+  return [];
 }
 
 const bpenvModeler = {
-  render
+  render,
+  getPlaces,
+  getEdges,
+  getLogicalPlaces,
+  getViews
 };
 
 export default bpenvModeler;
-
-const envModeler = render('bpenv-container');
-console.log(envModeler.getPlaces(), 'aaa');
