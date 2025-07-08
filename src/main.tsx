@@ -89,6 +89,22 @@ function render(containerId: string) {
 
   (window as any).triggerFileInput = () => fileInput.click();
 
+  function getPlaces(): any[] {
+    return [];
+  }
+
+  function getEdges(): any[] {
+    return [];
+  }
+
+  function getLogicalPlaces(): any[] {
+    return [];
+  }
+
+  function getViews(): any[] {
+    return [];
+  }
+
   apis = {
     getPlaces,
     getEdges,
@@ -99,20 +115,24 @@ function render(containerId: string) {
   return apis;
 }
 
-function getPlaces(): any[] {
-  return [];
+function getPlaces() {
+  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
+  return apis.getPlaces();
 }
 
-function getEdges(): any[] {
-  return [];
+function getEdges() {
+  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
+  return apis.getEdges();
 }
 
-function getLogicalPlaces(): any[] {
-  return [];
+function getLogicalPlaces() {
+  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
+  return apis.getLogicalPlaces();
 }
 
-function getViews(): any[] {
-  return [];
+function getViews() {
+  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
+  return apis.getViews();
 }
 
 const bpenvModeler = {
