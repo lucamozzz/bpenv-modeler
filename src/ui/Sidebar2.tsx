@@ -623,6 +623,11 @@ const Sidebar2: React.FC<Sidebar2Props> = () => {
     }
   };
 
+    //Get function for logical places and views
+  (window as any).getLogicalPlaces = () => logicalPlaces;
+  (window as any).getViews = () => views;
+
+
   // Funzione per renderizzare un elemento generico (place o edge)
   const renderElementSection = (title: string, elements: Element[]) => {
     if (elements.length === 0) return null;

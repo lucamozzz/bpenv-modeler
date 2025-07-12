@@ -49,6 +49,7 @@ function render(containerId: string) {
 
   initializeManagers(map);
 
+
   (window as any).addAttribute = addAttribute;
   (window as any).removeAttribute = removeAttribute;
   (window as any).renameElement = renameElement;
@@ -65,6 +66,19 @@ function render(containerId: string) {
   (window as any).unhighlightElement = () => {
     (window as any).selectionManager?.unhighlightElement();
   };
+
+
+// Espone una funzione globale per ottenere le "places"
+(window as any).getPlaces = () => {
+  const pm = (window as any).polygonManager;
+  return pm ? pm.getPlaceSource().getFeatures() : [];
+};
+
+// Espone una funzione globale per ottenere gli "edges" 
+(window as any).getEdges = () => {
+  const em = (window as any).edgeManager;
+  return em ? em.getEdgeSource().getFeatures() : [];
+};
 
   const sidebarRoot = ReactDOM.createRoot(container.querySelector('#sidebar-container')!);
   (window as any).sidebarRoot = sidebarRoot;
@@ -90,20 +104,21 @@ function render(containerId: string) {
   (window as any).triggerFileInput = () => fileInput.click();
 
   function getPlaces(): any[] {
-    return [];
-  }
+  return (window as any).getPlaces?.() || [];
+}
 
-  function getEdges(): any[] {
-    return [];
-  }
+function getEdges(): any[] {
+  return (window as any).getEdges?.() || [];
+}
 
-  function getLogicalPlaces(): any[] {
-    return [];
-  }
+function getLogicalPlaces(): any[] {
+  return (window as any).getLogicalPlaces?.() || [];
+}
 
-  function getViews(): any[] {
-    return [];
-  }
+function getViews(): any[] {
+  return (window as any).getViews?.() || [];
+}
+
 
   apis = {
     getPlaces,
@@ -115,25 +130,27 @@ function render(containerId: string) {
   return apis;
 }
 
-function getPlaces() {
+function ensureInitialized() {
   if (!apis) throw new Error('Modeler not initialized. Call render() first.');
-  return apis.getPlaces();
+  return apis;
+}
+
+function getPlaces() {
+  return ensureInitialized().getPlaces();
 }
 
 function getEdges() {
-  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
-  return apis.getEdges();
+  return ensureInitialized().getEdges();
 }
 
 function getLogicalPlaces() {
-  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
-  return apis.getLogicalPlaces();
+  return ensureInitialized().getLogicalPlaces();
 }
 
 function getViews() {
-  if (!apis) throw new Error('Modeler not initialized. Call render() first.');
-  return apis.getViews();
+  return ensureInitialized().getViews();
 }
+
 
 const bpenvModeler = {
   render,
