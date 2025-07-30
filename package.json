@@ -2,7 +2,7 @@
   "name": "bpenv-modeler",
   "author": "University of Camerino",
   "private": false,
-  "version": "0.0.7",
+  "version": "0.0.11",
   "type": "module",
   "main": "dist/bpenv-modeler.js",
   "module": "dist/bpenv-modeler.js",
@@ -21,15 +21,13 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@types/react": "^19.1.0",
+    "@types/react": "^19.1.1",
     "@types/react-dom": "^19.1.1",
     "@vitejs/plugin-react": "^4.3.4",
     "bootstrap": "^5.3.7",
     "leaflet": "1.0",
     "leaflet-draw": "^0.3.2",
     "ol": "^10.6.1",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
     "react-icons": "^5.5.0",
     "zustand": "^5.0.6"
   },
@@ -41,7 +39,7 @@
     "vitest": "^3.1.1"
   },
   "peerDependencies": {
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   }
 }
