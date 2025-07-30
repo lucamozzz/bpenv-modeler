@@ -9,7 +9,10 @@ import 'ol/ol.css';
 import './style.css';
 
 let apis: any = null;
-render('bpenv-container');
+
+if (!import.meta.env.PROD) {
+  render('bpenv-container');
+}
 
 function render(containerId: string, headless: boolean = false) {
   const container = document.getElementById(containerId);
