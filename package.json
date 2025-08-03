@@ -18,8 +18,7 @@
     "dev": "BROWSER=none vite --host",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest",
-    "release": "npm version patch && npm publish"
+    "test": "vitest"
   },
   "dependencies": {
     "@types/react": "^19.1.1",
