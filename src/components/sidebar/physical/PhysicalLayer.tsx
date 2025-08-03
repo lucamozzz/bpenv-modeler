@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import PhysicalPlaceItem from './PhysicalPlaceItem';
-import EdgeItem from './EdgeItem';
-import { useEnvStore } from '../envStore';
+import { useEnvStore } from '../../../envStore';
+import PhysicalElement from './PhysicalElement';
 
-const PhysicalLayerSection = () => {
+const PhysicalLayer = () => {
     const [isPlacesOpen, setIsPlacesOpen] = useState(true);
     const [isEdgesOpen, setIsEdgesOpen] = useState(true);
 
-    const places = useEnvStore((state) => state.places);
+    const places = useEnvStore((state) => state.physicalPlaces);
     const edges = useEnvStore((state) => state.edges);
 
     return (
@@ -26,7 +25,7 @@ const PhysicalLayerSection = () => {
                 ) : (
                     <ul className="list-group list-group-flush mb-3">
                         {places.map((p) => (
-                            <PhysicalPlaceItem key={p.id} place={p} />
+                            <PhysicalElement key={p.id} element={p} type="place" />
                         ))}
                     </ul>
                 )
@@ -44,7 +43,7 @@ const PhysicalLayerSection = () => {
                 ) : (
                     <ul className="list-group list-group-flush">
                         {edges.map((e) => (
-                            <EdgeItem key={e.id} edge={e} />
+                            <PhysicalElement key={e.id} element={e} type="edge" />
                         ))}
                     </ul>
                 ))}
@@ -52,4 +51,4 @@ const PhysicalLayerSection = () => {
     );
 };
 
-export default PhysicalLayerSection;
+export default PhysicalLayer;

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useEnvStore } from '../envStore';
+import { useEnvStore } from '../../../envStore';
 
-const AttributesForm = ({ elementId, initialAttributes }: {
+const PhysicalAttributes = ({ elementId, type, initialAttributes }: {
   elementId: string;
+  type: 'place' | 'edge';
   initialAttributes: Record<string, any>;
 }) => {
   const [attributes, setAttributes] = useState<Record<string, any>>(initialAttributes);
@@ -18,7 +19,7 @@ const AttributesForm = ({ elementId, initialAttributes }: {
 
   const updateStore = (updated: Record<string, any>) => {
     setAttributes(updated);
-    elementId.startsWith('Edge')
+    type === 'edge'
       ? updateEdge?.(elementId, { attributes: updated })
       : updatePlace?.(elementId, { attributes: updated });
   };
@@ -75,26 +76,28 @@ const AttributesForm = ({ elementId, initialAttributes }: {
         return (
           <div key={index} className="d-flex mb-1 align-items-center gap-1">
             <input
-              className="form-control form-control-md border-0 bg-transparent text-white p-0 custom-placeholder"
+              className="form-control form-control-md border-0 bg-transparent text-white p-0 custom-placeholder no-focus-outline"
               value={tempKeys[key] ?? key}
               onChange={(e) => handleTempKeyChange(key, e.target.value)}
               onBlur={(e) => handleKeyBlur(key, e.target.value)}
               placeholder="Attribute Key"
               disabled={!isEditable}
-            />
+              spellCheck={false}
+              />
             <input
-              className="form-control form-control-md border-0 bg-transparent text-white p-0 custom-placeholder"
+              className="form-control form-control-md border-0 bg-transparent text-white p-0 custom-placeholder no-focus-outline"
               value={value}
               onChange={(e) => handleValueChange(key, e.target.value)}
               onBlur={(e) => handleValueChange(key, e.target.value)}
               placeholder="Attribute Value"
               disabled={!isEditable}
+              spellCheck={false}
             />
             <button
-              className="btn btn-sm btn-outline-danger"
+              className="btn btn-sm btn-outline-danger p-1"
               onClick={() => handleRemoveAttribute(key)}
               title="Remove"
-              disabled={!isEditable}
+              hidden={!isEditable}
             >
               ✕
             </button>
@@ -105,4 +108,4 @@ const AttributesForm = ({ elementId, initialAttributes }: {
   );
 };
 
-export default AttributesForm;
+export default PhysicalAttributes;

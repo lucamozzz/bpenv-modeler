@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client';
-import HeaderComponent from './components/HeaderComponent';
-import MapComponent from './components/MapComponent';
+import Header from './components/Header';
+import Map from './components/Map';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
 import { useEnvStore } from './envStore';
 
@@ -23,13 +23,13 @@ function render(containerId: string, headless: boolean = false) {
 
   root.render(
     <div style={{ height: '100%' }}>
-      {!headless && <HeaderComponent />}
-      <MapComponent />
+      {!headless && <Header />}
+      <Map />
     </div>
   );
 
-  function getPlaces(): PhysicalPlace[] {
-    return useEnvStore.getState().places;
+  function getPhysicalPlaces(): PhysicalPlace[] {
+    return useEnvStore.getState().physicalPlaces;
   }
 
   function getEdges(): Edge[] {
@@ -46,18 +46,15 @@ function render(containerId: string, headless: boolean = false) {
 
   function getModel(): any {
     return {
-      places: getPlaces(),
+      places: getPhysicalPlaces(),
       edges: getEdges(),
       logicalPlaces: getLogicalPlaces(),
       views: getViews(),
     };
   }
 
-  function setModel(model: { places: PhysicalPlace[], edges: Edge[], logicalPlaces: LogicalPlace[], views: View[] }) {
-    model.places.forEach((place: PhysicalPlace) => useEnvStore.getState().addPlace(place));
-    model.edges.forEach((edge: Edge) => useEnvStore.getState().addEdge(edge));
-    useEnvStore.getState().logicalPlaces = model.logicalPlaces;
-    useEnvStore.getState().views = model.views;
+  function setModel(model: { physicalPlaces: PhysicalPlace[], edges: Edge[], logicalPlaces: LogicalPlace[], views: View[] }) {
+    useEnvStore.getState().setModel(model)
   }
 
   function isEditable(): boolean {
@@ -69,7 +66,7 @@ function render(containerId: string, headless: boolean = false) {
   }
 
   apis = {
-    getPlaces,
+    getPhysicalPlaces: getPhysicalPlaces,
     getEdges,
     getLogicalPlaces,
     getViews,
@@ -82,9 +79,9 @@ function render(containerId: string, headless: boolean = false) {
   return apis;
 }
 
-function getPlaces() {
+function getPhysicalPlaces() {
   if (!apis) throw new Error('Modeler not initialized. Call render() first.');
-  return apis.getPlaces();
+  return apis.getPhysicalPlaces();
 }
 
 function getEdges() {
@@ -124,7 +121,7 @@ function setEditable(isEditable: boolean) {
 
 const bpenvModeler = {
   render,
-  getPlaces,
+  getPhysicalPlaces,
   getEdges,
   getLogicalPlaces,
   getViews,

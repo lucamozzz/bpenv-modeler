@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
+import { clearFeatures, removeFeature, drawPlace, drawEdge, getFeature, enablePlaceDrawing, enableEdgeDrawing, disableDrawing} from './utils';
 import Map from 'ol/Map.js';
 
 type EnvStore = {
@@ -12,7 +13,7 @@ type EnvStore = {
     activeTool: 'hand' | 'place' | 'edge';
     setActiveTool: (tool: 'hand' | 'place' | 'edge') => void;
 
-    places: PhysicalPlace[];
+    physicalPlaces: PhysicalPlace[];
     logicalPlaces: LogicalPlace[];
     edges: Edge[];
     views: View[];
@@ -33,10 +34,16 @@ type EnvStore = {
     updateView: (id: string, updatedView: Partial<View>) => void;
     removeView: (id: string) => void;
 
+    setModel: (model: {
+        physicalPlaces: PhysicalPlace[],
+        edges: Edge[],
+        logicalPlaces: LogicalPlace[],
+        views: View[]
+    }) => void;
     clearModel: () => void;
 };
 
-export const useEnvStore = create<EnvStore>((set) => ({
+export const useEnvStore = create<EnvStore>((set, get) => ({
     mapInstance: new Map(),
     setMapInstance: (map) => set({ mapInstance: map }),
 
@@ -44,29 +51,42 @@ export const useEnvStore = create<EnvStore>((set) => ({
     setEditable: (editable) => set({ isEditable: editable }),
 
     activeTool: 'hand',
-    setActiveTool: (tool) => set({ activeTool: tool }),
+    setActiveTool: (tool) => {
+        disableDrawing(get().mapInstance);
+        if (tool === 'place')
+            enablePlaceDrawing(get().mapInstance);
+        else if (tool === 'edge')
+            enableEdgeDrawing(get().mapInstance);
+        set({ activeTool: tool });
+    },
 
-    places: [],
+    physicalPlaces: [],
     logicalPlaces: [],
     edges: [],
     views: [],
 
     addPlace: (place) =>
         set((state) => ({
-            places: [...state.places, place]
+            physicalPlaces: [...state.physicalPlaces, place]
         })),
 
     updatePlace: (id, updatedPlace) =>
         set((state) => ({
-            places: state.places.map((p) =>
+            physicalPlaces: state.physicalPlaces.map((p) =>
                 p.id === id ? { ...p, ...updatedPlace } : p
             )
         })),
 
-    removePlace: (id) =>
+    removePlace: (id) => {
+        removeFeature(get().mapInstance, id);
         set((state) => ({
-            places: state.places.filter((p) => p.id !== id)
-        })),
+            physicalPlaces: state.physicalPlaces.filter((p) => p.id !== id)
+        }));
+
+        get().edges.forEach((e) => {
+            if (e.source === id || e.target === id) get().removeEdge(e.id);
+        });
+    },
 
     addEdge: (edge) =>
         set((state) => ({
@@ -80,10 +100,12 @@ export const useEnvStore = create<EnvStore>((set) => ({
             )
         })),
 
-    removeEdge: (id) =>
+    removeEdge: (id) => {
+        removeFeature(get().mapInstance, id);
         set((state) => ({
             edges: state.edges.filter((e) => e.id !== id)
-        })),
+        }));
+    },
 
     addLogicalPlace: (logicalPlace) =>
         set((state) => ({
@@ -119,11 +141,31 @@ export const useEnvStore = create<EnvStore>((set) => ({
             views: state.views.filter((v) => v.id !== id)
         })),
 
-    clearModel: () =>
+    setModel: (model) => {
+        clearFeatures(get().mapInstance);
         set(() => ({
-            places: [],
+            physicalPlaces: model.physicalPlaces,
+            edges: model.edges,
+            logicalPlaces: model.logicalPlaces,
+            views: model.views
+        }));
+
+        model.physicalPlaces.forEach((place: PhysicalPlace) => drawPlace(get().mapInstance, place.id, place.coordinates));
+        model.edges.forEach((edge: Edge) => {
+            const sourceFeature = getFeature(get().mapInstance, edge.source);
+            const targetFeature = getFeature(get().mapInstance, edge.target);
+            if (sourceFeature && targetFeature)
+                drawEdge(get().mapInstance, sourceFeature, targetFeature, edge.id);
+        });
+    },
+
+    clearModel: () => {
+        clearFeatures(get().mapInstance);
+        set(() => ({
+            physicalPlaces: [],
             logicalPlaces: [],
             edges: [],
             views: []
-        })),
+        }))
+    }
 }));
