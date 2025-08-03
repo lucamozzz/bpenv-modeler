@@ -1,8 +1,10 @@
 # BPEnv Modeler
 
-BPEnv Modeler is a visual modeling tool based on React, designed to define and manage spatial models used in environmentally-aware business process modeling. It provides an interactive map interface to define physical places, logical abstractions, transitions (edges), and views, with support for editing, validation, and highlighting.
 
-The modeler can be integrated into other applications and offers a JavaScript API to interact programmatically with the current model.
+
+BPEnv Modeler is a visual modeling tool based on React, designed to define and manage environment models used in environmental-aware business process modeling. It provides an interactive map interface to define physical and logical places, edges, and views.
+
+The modeler can be integrated into other applications and offers an API to interact programmatically with the model.
 
 ---
 
