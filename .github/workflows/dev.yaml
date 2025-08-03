@@ -12,9 +12,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 18
-      - run: npm ci
+
+      - name: Install dependencies
+        run: rm -rf node_modules && npm ci
+
       - name: Run tests
         run: npm run test
