@@ -1,5 +1,8 @@
 name: Publish main branch
 
+permissions:
+  contents: write
+
 on:
   push:
     branches: ["main"]
@@ -24,6 +27,8 @@ jobs:
           npm version patch --no-git-tag-version
 
       - name: Push version bump and tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
