@@ -21,7 +21,7 @@ jobs:
 
       - name: Bump version
         run: |
-          npm version patch
+          npm version patch --no-git-tag-version
 
       - name: Push version bump and tags
         run: |
