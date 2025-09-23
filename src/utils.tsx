@@ -78,32 +78,32 @@ export function initMap(mapRef: HTMLDivElement): Map {
                     }),
                 }));
 
-                geometry.forEachSegment((start, end) => {
-                    const dx = end[0] - start[0];
-                    const dy = end[1] - start[1];
-                    const rotation = Math.atan2(dy, dx);
-                    const length = 0.0004;
+                // geometry.forEachSegment((start, end) => {
+                //     const dx = end[0] - start[0];
+                //     const dy = end[1] - start[1];
+                //     const rotation = Math.atan2(dy, dx);
+                //     const length = 0.0004;
 
-                    const leftWing = new LineString([
-                        end,
-                        [end[0] - length, end[1] + length],
-                    ]);
-                    leftWing.rotate(rotation, end);
+                //     const leftWing = new LineString([
+                //         end,
+                //         [end[0] - length, end[1] + length],
+                //     ]);
+                //     leftWing.rotate(rotation, end);
 
-                    const rightWing = new LineString([
-                        end,
-                        [end[0] - length, end[1] - length],
-                    ]);
-                    rightWing.rotate(rotation, end);
+                //     const rightWing = new LineString([
+                //         end,
+                //         [end[0] - length, end[1] - length],
+                //     ]);
+                //     rightWing.rotate(rotation, end);
 
-                    const arrowStroke = new Stroke({
-                        color: highlighted ? 'rgb(255, 255, 0)' : 'rgba(255, 0, 0, 0.8)',
-                        width: 4,
-                    });
+                //     const arrowStroke = new Stroke({
+                //         color: highlighted ? 'rgb(255, 255, 0)' : 'rgba(255, 0, 0, 0.8)',
+                //         width: 4,
+                //     });
 
-                    styles.push(new Style({ geometry: leftWing, stroke: arrowStroke }));
-                    styles.push(new Style({ geometry: rightWing, stroke: arrowStroke }));
-                });
+                //     styles.push(new Style({ geometry: leftWing, stroke: arrowStroke }));
+                //     styles.push(new Style({ geometry: rightWing, stroke: arrowStroke }));
+                // });
 
                 return styles;
             }

@@ -7,13 +7,12 @@ export default defineConfig({
   plugins: [react()],
   build: {
     lib: {
-      entry: path.resolve(__dirname, 'src/main.tsx'),
+      entry: path.resolve(__dirname, 'src/index.ts'),
       name: 'bpenvModeler',
       fileName: 'bpenv-modeler',
-      formats: ['es'], // oppure 'umd' se vuoi compatibilità <script>
+      formats: ['es', 'umd'],
     },
     rollupOptions: {
-      // Estrai React come peerDependency
       external: ['react', 'react-dom'],
       output: {
         globals: {
@@ -25,9 +24,5 @@ export default defineConfig({
   },
   server: {
     host: true,
-    allowedHosts: [
-      '5174-iyshibp2l4h67ue67g6k7-af56deff.manus.computer',
-      '.manus.computer'
-    ]
   }
 })

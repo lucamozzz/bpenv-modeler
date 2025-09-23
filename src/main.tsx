@@ -16,8 +16,7 @@ if (!import.meta.env.PROD) {
 
 function render(containerId: string, headless: boolean = false) {
   const container = document.getElementById(containerId);
-  if (!container)
-    throw new Error(`Container element with id "${containerId}" not found.`);
+  if (!container) throw new Error(`Container element with id "${containerId}" not found.`);
 
   const root = ReactDOM.createRoot(container);
 
@@ -46,15 +45,20 @@ function render(containerId: string, headless: boolean = false) {
 
   function getModel(): any {
     return {
-      places: getPhysicalPlaces(),
+      physicalPlaces: getPhysicalPlaces(),
       edges: getEdges(),
       logicalPlaces: getLogicalPlaces(),
       views: getViews(),
     };
   }
 
-  function setModel(model: { physicalPlaces: PhysicalPlace[], edges: Edge[], logicalPlaces: LogicalPlace[], views: View[] }) {
-    useEnvStore.getState().setModel(model)
+  function setModel(model: {
+    physicalPlaces: PhysicalPlace[];
+    edges: Edge[];
+    logicalPlaces: LogicalPlace[];
+    views: View[];
+  }) {
+    useEnvStore.getState().setModel(model);
   }
 
   function isEditable(): boolean {
@@ -66,14 +70,14 @@ function render(containerId: string, headless: boolean = false) {
   }
 
   apis = {
-    getPhysicalPlaces: getPhysicalPlaces,
+    getPhysicalPlaces,
     getEdges,
     getLogicalPlaces,
     getViews,
     getModel,
     setModel,
     isEditable,
-    setEditable
+    setEditable,
   };
 
   return apis;
@@ -104,7 +108,12 @@ function getModel() {
   return apis.getModel();
 }
 
-function setModel(model: { places: PhysicalPlace[], edges: Edge[], logicalPlaces: LogicalPlace[], views: View[] }) {
+function setModel(model: {
+  physicalPlaces: PhysicalPlace[];
+  edges: Edge[];
+  logicalPlaces: LogicalPlace[];
+  views: View[];
+}) {
   if (!apis) throw new Error('Modeler not initialized. Call render() first.');
   apis.setModel(model);
 }
@@ -128,7 +137,7 @@ const bpenvModeler = {
   getModel,
   setModel,
   isEditable,
-  setEditable
+  setEditable,
 };
 
 export default bpenvModeler;
