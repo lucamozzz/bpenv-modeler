@@ -16,6 +16,10 @@ Install the package via NPM:
 npm install bpenv-modeler
 ```
 
+```bash
+npm run dev
+```
+
 ---
 
 🚀 **Usage**

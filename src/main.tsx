@@ -3,6 +3,7 @@ import Header from './components/Header';
 import Map from './components/Map';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
 import { useEnvStore } from './envStore';
+import { getWeatherForecast } from './components/services/WeatherAPIResponse';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'ol/ol.css';
@@ -127,6 +128,17 @@ function setEditable(isEditable: boolean) {
   if (!apis) throw new Error('Modeler not initialized. Call render() first.');
   apis.setEditable(isEditable);
 }
+
+// Fetch weather on startup
+(async () => {
+    try {
+        // Example: New York City coordinates
+        const weather = await getWeatherForecast(40.7128, -74.0060);
+        console.log('Weather forecast:', weather);
+    } catch (error) {
+        console.error('Failed to fetch weather on startup:', error);
+    }
+})();
 
 const bpenvModeler = {
   render,
