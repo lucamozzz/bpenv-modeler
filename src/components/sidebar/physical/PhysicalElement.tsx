@@ -4,6 +4,7 @@ import { useEnvStore } from '../../../envStore';
 import { BsTrash } from 'react-icons/bs';
 import PhysicalAttributes from './PhysicalAttributes';
 import { highlightFeature, unhighlightFeature, fitFeaturesOnMap } from '../../../utils';
+import { getProviderRegistry } from '../../../services/AttributeProviderRegistry';
 
 type Props = {
   element: PhysicalPlace | Edge;
@@ -12,6 +13,7 @@ type Props = {
 
 const PhysicalElement = ({ element, type }: Props) => {
   const [newName, setNewName] = useState(element.name || '');
+  const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
   const mapInstance = useEnvStore((state) => state.mapInstance);
   const isEditable = useEnvStore((state) => state.isEditable);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -54,6 +56,53 @@ const PhysicalElement = ({ element, type }: Props) => {
     }
   };
 
+  const handleFetchAttributes = async (providerId: string) => {
+    if (type !== 'place') {
+      alert('Attribute fetching only works for places with coordinates');
+      return;
+    }
+
+    setLoadingProvider(providerId);
+
+    try {
+      const registry = getProviderRegistry();
+      const provider = registry.getProvider(providerId);
+
+      if (!provider) {
+        alert(`Provider '${providerId}' not found. Did you initialize providers?`);
+        return;
+      }
+
+      const place = element as PhysicalPlace;
+
+      if (!provider.canHandle(place)) {
+        alert(`Provider '${provider.metadata.name}' cannot handle this location`);
+        return;
+      }
+
+      const result = await provider.fetchAttributes(place);
+
+      if (result.success) {
+        const mergedAttributes = {
+          ...element.attributes,
+          ...result.attributes
+        };
+
+        updateElement?.(element.id, { attributes: mergedAttributes });
+
+        const count = Object.keys(result.attributes).length;
+        alert(`Success! Fetched ${count} attributes from ${provider.metadata.name}`);
+      } else {
+        alert(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error fetching attributes:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoadingProvider(null);
+    }
+  };
+
   return (
     <li
       className="list-group-item bg-dark text-white"
@@ -85,7 +134,7 @@ const PhysicalElement = ({ element, type }: Props) => {
         />
         <div className="btn-group btn-group-sm">
           <button
-            className="btn btn-outline-light p-1 me-1"
+            className="btn btn-outline-light p-1"
             onClick={() => {
               const updatedAttributes = { ...element.attributes };
               updatedAttributes['key'] = 'value';
@@ -99,8 +148,90 @@ const PhysicalElement = ({ element, type }: Props) => {
           >
             +
           </button>
+          <div className="btn-group" role="group" hidden={!isEditable || type !== 'place'}>
+            <button
+              type="button"
+              className="btn btn-outline-info p-1 dropdown-toggle"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+              title="Fetch attributes from API"
+              disabled={loadingProvider !== null}
+            >
+              {loadingProvider ? '⏳' : '🌐'}
+            </button>
+            <ul className="dropdown-menu dropdown-menu-dark">
+              <li>
+                <h6 className="dropdown-header">Fetch Attributes From:</h6>
+              </li>
+              <li>
+                <button
+                  className="dropdown-item"
+                  onClick={() => handleFetchAttributes('weather')}
+                  disabled={loadingProvider !== null}
+                >
+                  {loadingProvider === 'weather' ? '⏳ ' : ''}Weather (NOAA)
+                </button>
+              </li>
+              <li>
+                <button
+                  className="dropdown-item"
+                  onClick={() => handleFetchAttributes('geocoding')}
+                  disabled={loadingProvider !== null}
+                >
+                  {loadingProvider === 'geocoding' ? '⏳ ' : ''}Location (Nominatim)
+                </button>
+              </li>
+              <li>
+                <button
+                  className="dropdown-item"
+                  onClick={() => handleFetchAttributes('osm-tags')}
+                  disabled={loadingProvider !== null}
+                >
+                  {loadingProvider === 'osm-tags' ? '⏳ ' : ''}OSM Tags (Overpass)
+                </button>
+              </li>
+              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <button
+                  className="dropdown-item text-primary"
+                  onClick={async () => {
+                    if (type !== 'place') return;
+                    setLoadingProvider('all');
+                    try {
+                      const registry = getProviderRegistry();
+                      const providers = registry.getAllProviders();
+                      const place = element as PhysicalPlace;
+
+                      let mergedAttributes = { ...element.attributes };
+                      let totalCount = 0;
+
+                      for (const provider of providers) {
+                        if (provider.canHandle(place)) {
+                          const result = await provider.fetchAttributes(place);
+                          if (result.success) {
+                            mergedAttributes = { ...mergedAttributes, ...result.attributes };
+                            totalCount += Object.keys(result.attributes).length;
+                          }
+                        }
+                      }
+
+                      updateElement?.(element.id, { attributes: mergedAttributes });
+                      alert(`Success! Fetched ${totalCount} total attributes from all providers`);
+                    } catch (error) {
+                      alert(`Error: ${error}`);
+                    } finally {
+                      setLoadingProvider(null);
+                    }
+                  }}
+                  disabled={loadingProvider !== null}
+                >
+                  {loadingProvider === 'all' ? '⏳ ' : ''}Fetch All
+                </button>
+              </li>
+            </ul>
+          </div>
           <button
-            className="btn btn-outline-danger p-1"
+            className="btn btn-outline-danger p-1 ms-1"
             onClick={handleDelete}
             title="Delete"
             hidden={!isEditable}
