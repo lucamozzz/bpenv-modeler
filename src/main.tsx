@@ -3,9 +3,10 @@ import Header from './components/Header';
 import Map from './components/Map';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
 import { useEnvStore } from './envStore';
-import { getWeatherForecast } from './components/services/WeatherAPIResponse';
+import { initializeProviders } from './services/initializeProviders';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
 import 'ol/ol.css';
 import './style.css';
 
@@ -129,14 +130,13 @@ function setEditable(isEditable: boolean) {
   apis.setEditable(isEditable);
 }
 
-// Fetch weather on startup
+// Initialize attribute providers on startup
 (async () => {
     try {
-        // Example: New York City coordinates
-        const weather = await getWeatherForecast(40.7128, -74.0060);
-        console.log('Weather forecast:', weather);
+        await initializeProviders();
+        console.log('✅ Attribute providers initialized and ready to use!');
     } catch (error) {
-        console.error('Failed to fetch weather on startup:', error);
+        console.error('Failed to initialize providers:', error);
     }
 })();
 
