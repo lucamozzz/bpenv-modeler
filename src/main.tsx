@@ -3,11 +3,12 @@ import Header from './components/Header';
 import Map from './components/Map';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
 import { useEnvStore } from './envStore';
-import { getWeatherForecast } from './components/services/WeatherAPIResponse';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'ol/ol.css';
 import './style.css';
+import { executeApiCall } from './components/services/ApiInterface.tsx';
+import {APICALL_NAME_WEATHER} from "./components/services/variables/apiCallNames.ts";
 
 let apis: any = null;
 
@@ -133,7 +134,7 @@ function setEditable(isEditable: boolean) {
 (async () => {
     try {
         // Example: New York City coordinates
-        const weather = await getWeatherForecast(40.7128, -74.0060);
+        const weather = await executeApiCall(APICALL_NAME_WEATHER, 40.7128, -74.0060);
         console.log('Weather forecast:', weather);
     } catch (error) {
         console.error('Failed to fetch weather on startup:', error);

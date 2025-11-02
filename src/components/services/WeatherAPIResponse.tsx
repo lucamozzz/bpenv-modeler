@@ -7,12 +7,12 @@ export const getWeatherForecast = async (
     longitude: number
 ): Promise<Weather> => {
     try {
-        // First, get the grid endpoint for the location
+        // GET the response for the location
         const pointsResponse = await fetch(
-            `https://api.weather.gov/points/${latitude},${longitude}`,
-            {}
+            `https://api.weather.gov/points/${latitude},${longitude}`
         );
 
+        // negative case for failed fetch
         if (!pointsResponse.ok) {
             throw new Error(`HTTP error! status: ${pointsResponse.status}`);
         }
@@ -20,12 +20,8 @@ export const getWeatherForecast = async (
         const pointsData = await pointsResponse.json();
         const forecastUrl = pointsData.properties.forecast;
 
-        // Then, get the forecast
-        const forecastResponse = await fetch(forecastUrl, {
-            headers: {
-                'User-Agent': '(myweatherapp.com, contact@myweatherapp.com)',
-            },
-        });
+        // GET the forecast
+        const forecastResponse = await fetch(forecastUrl);
 
         if (!forecastResponse.ok) {
             throw new Error(`HTTP error! status: ${forecastResponse.status}`);
