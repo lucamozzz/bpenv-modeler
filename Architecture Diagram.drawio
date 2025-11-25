@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e" pages="2">
     <diagram id="5dCd4pDSBrz9y7t-jQfP" name="Complex System Design">
-        <mxGraphModel dx="419" dy="370" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="582" dy="563" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -64,10 +64,16 @@
                 <mxCell id="_11AVjDdhv7MAALe1ELa-20" value="" style="image;html=1;image=img/lib/clip_art/general/Earth_globe_128x128.png;rounded=1;strokeColor=#d6b656;align=left;verticalAlign=top;spacingLeft=1;fontFamily=Helvetica;fontSize=14;fontColor=default;fontStyle=1;fillColor=#fff2cc;" parent="_11AVjDdhv7MAALe1ELa-10" vertex="1">
                     <mxGeometry x="330" y="150" width="60" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="_11AVjDdhv7MAALe1ELa-21" value="EXTERNAL APIs" style="swimlane;fontSize=16;fontStyle=1;fillColor=#ffebee;strokeColor=#c62828;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
+                <mxCell id="_11AVjDdhv7MAALe1ELa-32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#6a1b9a;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-10" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="380" y="250" as="sourcePoint"/>
+                        <mxPoint x="625" y="280" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="_11AVjDdhv7MAALe1ELa-21" value="EXTERNAL APIs" style="swimlane;fontSize=16;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Verdana;horizontal=1;textShadow=0;fontColor=#333333;" parent="1" vertex="1">
                     <mxGeometry x="800" y="640" width="760" height="160" as="geometry"/>
                 </mxCell>
-                <mxCell id="_11AVjDdhv7MAALe1ELa-22" value="api.weather.gov&#xa;(NOAA Weather)&#xa;&#xa;US only&#xa;Weather forecast" style="rounded=1;fillColor=#ffccbc;strokeColor=#d84315;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-21" vertex="1">
+                <mxCell id="_11AVjDdhv7MAALe1ELa-22" value="api.weather.gov&#xa;(Weather)&#xa;&#xa;Weather forecast" style="rounded=1;fillColor=#ffccbc;strokeColor=#d84315;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-21" vertex="1">
                     <mxGeometry x="20" y="50" width="230" height="100" as="geometry"/>
                 </mxCell>
                 <mxCell id="_11AVjDdhv7MAALe1ELa-23" value="nominatim.osm.org&#xa;(Reverse Geocoding)&#xa;&#xa;Worldwide&#xa;Address info" style="rounded=1;fillColor=#c8e6c9;strokeColor=#388e3c;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-21" vertex="1">
@@ -94,12 +100,14 @@
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="_11AVjDdhv7MAALe1ELa-30" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#f57f17;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" source="_11AVjDdhv7MAALe1ELa-11" target="_11AVjDdhv7MAALe1ELa-12" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1180" y="330"/>
+                            <mxPoint x="935" y="330"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="_11AVjDdhv7MAALe1ELa-31" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#2e7d32;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" source="_11AVjDdhv7MAALe1ELa-11" target="_11AVjDdhv7MAALe1ELa-13" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
-                </mxCell>
-                <mxCell id="_11AVjDdhv7MAALe1ELa-32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeWidth=2;strokeColor=#6a1b9a;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" source="_11AVjDdhv7MAALe1ELa-11" target="_11AVjDdhv7MAALe1ELa-14" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <mxCell id="_11AVjDdhv7MAALe1ELa-33" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;strokeWidth=3;strokeColor=#d84315;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" source="_11AVjDdhv7MAALe1ELa-15" target="_11AVjDdhv7MAALe1ELa-22" edge="1">
@@ -140,7 +148,7 @@
                 <mxCell id="_11AVjDdhv7MAALe1ELa-39" value="Integration Point (🌐)" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-36" vertex="1">
                     <mxGeometry x="360" y="40" width="150" height="40" as="geometry"/>
                 </mxCell>
-                <mxCell id="_11AVjDdhv7MAALe1ELa-40" value="External APIs" style="rounded=1;fillColor=#ffccbc;strokeColor=#d84315;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-36" vertex="1">
+                <mxCell id="_11AVjDdhv7MAALe1ELa-40" value="External APIs" style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Verdana;horizontal=1;textShadow=0;fontColor=#333333;" parent="_11AVjDdhv7MAALe1ELa-36" vertex="1">
                     <mxGeometry x="530" y="40" width="150" height="40" as="geometry"/>
                 </mxCell>
                 <mxCell id="_11AVjDdhv7MAALe1ELa-41" value="─────  Data flow" style="text;align=left;fontSize=11;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-36" vertex="1">
