@@ -2,7 +2,7 @@
   "name": "bpenv-modeler",
   "author": "University of Camerino",
   "private": false,
-  "version": "0.0.16",
+  "version": "0.0.17",
   "type": "module",
   "main": "dist/bpenv-modeler.js",
   "module": "dist/bpenv-modeler.js",
