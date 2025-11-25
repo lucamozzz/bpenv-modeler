@@ -46,18 +46,18 @@ const LogicalPlace = ({ item }: { item: LogicalPlaceType }) => {
           const matchingIds = getMatchingPhysicalPlaceIds(item, physicalPlaces);
           matchingIds.forEach((id) => highlightFeature(mapInstance, id));
 
-          hoverTimeoutRef.current = setTimeout(() => {
-            fitFeaturesOnMap(mapInstance, matchingIds);
-          }, 2000);
+          // hoverTimeoutRef.current = setTimeout(() => {
+          //   fitFeaturesOnMap(mapInstance, matchingIds);
+          // }, 2000);
         }}
         onMouseLeave={() => {
           const matchingIds = getMatchingPhysicalPlaceIds(item, physicalPlaces);
           matchingIds.forEach((id) => unhighlightFeature(mapInstance, id));
 
-          if (hoverTimeoutRef.current) {
-            clearTimeout(hoverTimeoutRef.current);
-            hoverTimeoutRef.current = null;
-          }
+          // if (hoverTimeoutRef.current) {
+          //   clearTimeout(hoverTimeoutRef.current);
+          //   hoverTimeoutRef.current = null;
+          // }
         }}
       >
         <span>{item.name}</span>

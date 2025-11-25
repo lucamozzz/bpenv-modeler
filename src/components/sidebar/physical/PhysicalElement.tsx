@@ -60,17 +60,17 @@ const PhysicalElement = ({ element, type }: Props) => {
       onMouseEnter={() => {
         highlightFeature(mapInstance, element.id);
 
-        hoverTimeoutRef.current = setTimeout(() => {
-          fitFeaturesOnMap(mapInstance, [element.id]);
-        }, 2000);
+        // hoverTimeoutRef.current = setTimeout(() => {
+        //   fitFeaturesOnMap(mapInstance, [element.id]);
+        // }, 2000);
       }}
       onMouseLeave={() => {
         unhighlightFeature(mapInstance, element.id);
 
-        if (hoverTimeoutRef.current) {
-          clearTimeout(hoverTimeoutRef.current);
-          hoverTimeoutRef.current = null;
-        }
+        // if (hoverTimeoutRef.current) {
+        //   clearTimeout(hoverTimeoutRef.current);
+        //   hoverTimeoutRef.current = null;
+        // }
       }}
     >
       <div className="d-flex justify-content-between align-items-center">

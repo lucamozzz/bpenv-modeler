@@ -29,4 +29,5 @@ export type View = {
     id: string;
     name: string;
     logicalPlaces: string[];
+    aggregations: Record<string, string>;
 }

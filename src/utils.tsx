@@ -47,15 +47,15 @@ export function initMap(mapRef: HTMLDivElement): Map {
                     fill: new Fill({
                         color: highlighted ? 'rgba(255, 255, 0, 0.4)' : 'rgba(0, 0, 0, 0.1)',
                     }),
-                    text: new Text({
-                        text: name,
-                        font: '8px sans-serif',
-                        fill: new Fill({ color: '#000' }),
-                        stroke: new Stroke({ color: '#fff', width: 2 }),
-                        textAlign: 'center',
-                        textBaseline: 'middle',
-                        overflow: true,
-                    }),
+                    // text: new Text({
+                    //     text: name,
+                    //     font: '8px sans-serif',
+                    //     fill: new Fill({ color: '#000' }),
+                    //     stroke: new Stroke({ color: '#fff', width: 2 }),
+                    //     textAlign: 'center',
+                    //     textBaseline: 'middle',
+                    //     overflow: true,
+                    // }),
                 });
             }
 
@@ -64,18 +64,18 @@ export function initMap(mapRef: HTMLDivElement): Map {
 
                 styles.push(new Style({
                     stroke: new Stroke({
-                        color: highlighted ? 'rgb(255, 255, 0)' : 'rgba(255, 0, 0, 0.4)',
+                        color: highlighted ? 'rgb(255, 255, 0)' : 'rgba(255, 0, 0, 0.2)',
                         width: 3,
                     }),
-                    text: new Text({
-                        text: name,
-                        font: '8px sans-serif',
-                        fill: new Fill({ color: '#000' }),
-                        stroke: new Stroke({ color: '#fff', width: 2 }),
-                        textAlign: 'center',
-                        textBaseline: 'middle',
-                        overflow: true,
-                    }),
+                    // text: new Text({
+                    //     text: name,
+                    //     font: '8px sans-serif',
+                    //     fill: new Fill({ color: '#000' }),
+                    //     stroke: new Stroke({ color: '#fff', width: 2 }),
+                    //     textAlign: 'center',
+                    //     textBaseline: 'middle',
+                    //     overflow: true,
+                    // }),
                 }));
 
                 // geometry.forEachSegment((start, end) => {
