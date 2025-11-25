@@ -1,6 +1,26 @@
 <mxfile host="65bd71144e" pages="2">
+    <diagram id="EKLP0cVKs3FkH11w_RCZ" name="PhysicalLayer">
+        <mxGraphModel dx="1187" dy="1251" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="_4WaY2ftQTIHrjqXVi67-1" value="Sidebar (PhysicalLayer)" style="rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;fontStyle=1;align=left;verticalAlign=top;spacingLeft=15;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="310" width="680" height="250" as="geometry"/>
+                </mxCell>
+                <mxCell id="_4WaY2ftQTIHrjqXVi67-2" value="PhysicalElement.tsx&#xa;• Name input&#xa;• [+] Add attributeIntegration&#xa;• [🌐] Fetch from APIs ⬅ NEW!&#xa;  - Weather&#xa;  - Location&#xa;  - OSM Tags&#xa;  - Fetch All&#xa;• [🗑] Delete" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=10;fontStyle=0;labelBackgroundColor=none;labelBorderColor=none;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
+                    <mxGeometry x="80" y="350" width="300" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="_4WaY2ftQTIHrjqXVi67-3" value="PhysicalAttributes.tsx&#xa;• Key-value editor&#xa;• Edit/delete attributes&#xa;• Dynamic display" style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
+                    <mxGeometry x="430" y="350" width="300" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="_4WaY2ftQTIHrjqXVi67-4" value="" style="image;aspect=fixed;perimeter=ellipsePerimeter;html=1;align=center;shadow=0;dashed=0;spacingTop=3;image=img/lib/active_directory/databases.svg;rounded=1;strokeColor=#d6b656;verticalAlign=top;spacingLeft=1;fontFamily=Helvetica;fontSize=14;fontColor=default;fontStyle=1;fillColor=#fff2cc;" parent="1" vertex="1">
+                    <mxGeometry x="350" y="440" width="103.06" height="101" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
     <diagram id="5dCd4pDSBrz9y7t-jQfP" name="Complex System Design">
-        <mxGraphModel dx="582" dy="563" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+        <mxGraphModel dx="1253" dy="938" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -157,14 +177,28 @@
                 <mxCell id="_11AVjDdhv7MAALe1ELa-42" value="- - - -  API call" style="text;align=left;fontSize=11;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-36" vertex="1">
                     <mxGeometry x="190" y="100" width="150" height="20" as="geometry"/>
                 </mxCell>
-                <mxCell id="_11AVjDdhv7MAALe1ELa-43" value="STATE MANAGEMENT LAYER" style="swimlane;fontSize=16;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
+                <mxCell id="_11AVjDdhv7MAALe1ELa-43" value="STATE MANAGEMENT LAYER" style="swimlane;fontSize=16;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
                     <mxGeometry x="40" y="1250" width="720" height="210" as="geometry"/>
                 </mxCell>
-                <mxCell id="_11AVjDdhv7MAALe1ELa-44" value="envStore.ts (Zustand)&#xa;&#xa;State:&#xa;• physicalPlaces: PhysicalPlace[]&#xa;  └─ { id, name, coordinates, attributes }&#xa;• edges, logicalPlaces, views&#xa;&#xa;Actions:&#xa;• updatePlace(id, updates) ⬅ Updates attributes&#xa;• addPlace(), removePlace(), etc." style="rounded=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=10;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-43" vertex="1">
+                <mxCell id="_11AVjDdhv7MAALe1ELa-44" value="envStore.ts (Zustand)&#xa;&#xa;State:&#xa;• physicalPlaces: PhysicalPlace[]&#xa;  └─ { id, name, coordinates, attributes }&#xa;• edges, logicalPlaces, views&#xa;&#xa;Actions:&#xa;• updatePlace(id, updates) ⬅ Updates attributes&#xa;• addPlace(), removePlace(), etc." style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="_11AVjDdhv7MAALe1ELa-43" vertex="1">
                     <mxGeometry x="20" y="40" width="680" height="160" as="geometry"/>
                 </mxCell>
                 <mxCell id="_11AVjDdhv7MAALe1ELa-45" value="" style="rounded=1;fillColor=#b3e5fc;strokeColor=#01579b;fontFamily=Verdana;horizontal=1;textShadow=0;" parent="1" vertex="1">
                     <mxGeometry x="1830" y="140" width="720" height="60" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="-jD_mbke4Ua-b0b2F7mC" name="State Management Layer">
+        <mxGraphModel dx="885" dy="-438" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="LwWid8S3ts7pUhl7D0gD-1" value="STATE MANAGEMENT LAYER" style="swimlane;fontSize=16;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;fontFamily=Verdana;horizontal=1;textShadow=0;" vertex="1" parent="1">
+                    <mxGeometry x="40" y="1250" width="720" height="210" as="geometry"/>
+                </mxCell>
+                <mxCell id="LwWid8S3ts7pUhl7D0gD-2" value="envStore.ts (Zustand)&#xa;&#xa;State:&#xa;• physicalPlaces: PhysicalPlace[]&#xa;  └─ { id, name, coordinates, attributes }&#xa;• edges, logicalPlaces, views&#xa;&#xa;Actions:&#xa;• updatePlace(id, updates) ⬅ Updates attributes&#xa;• addPlace(), removePlace(), etc." style="rounded=1;fillColor=#ffe6cc;strokeColor=#d79b00;align=left;verticalAlign=top;spacingLeft=10;fontFamily=Verdana;horizontal=1;textShadow=0;" vertex="1" parent="LwWid8S3ts7pUhl7D0gD-1">
+                    <mxGeometry x="20" y="40" width="680" height="160" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
