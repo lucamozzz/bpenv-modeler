@@ -152,7 +152,6 @@ export const useEnvStore = create<EnvStore>((set, get) => ({
 
         model.physicalPlaces.forEach((place: PhysicalPlace) => {
             drawPlace(get().mapInstance, place.id, place.coordinates);
-            features.push(place.id)
         });
         model.edges.forEach((edge: Edge) => {
             const sourceFeature = getFeature(get().mapInstance, edge.source);
