@@ -150,7 +150,6 @@ export const useEnvStore = create<EnvStore>((set, get) => ({
             views: model.views
         }));
 
-        let features: string[] = []
         model.physicalPlaces.forEach((place: PhysicalPlace) => {
             drawPlace(get().mapInstance, place.id, place.coordinates);
             features.push(place.id)
@@ -161,7 +160,6 @@ export const useEnvStore = create<EnvStore>((set, get) => ({
             if (sourceFeature && targetFeature)
                 drawEdge(get().mapInstance, sourceFeature, targetFeature, edge.id);
         });
-        fitFeaturesOnMap(get().mapInstance, features);
     },
 
     clearModel: () => {
