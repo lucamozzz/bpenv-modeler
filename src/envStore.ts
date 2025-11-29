@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
-import { clearFeatures, removeFeature, drawPlace, drawEdge, getFeature, enablePlaceDrawing, enableEdgeDrawing, disableDrawing} from './utils';
+import { clearFeatures, removeFeature, drawPlace, drawEdge, getFeature, enablePlaceDrawing, enableEdgeDrawing, disableDrawing, fitFeaturesOnMap} from './utils';
 import Map from 'ol/Map.js';
 
 type EnvStore = {
@@ -150,13 +150,18 @@ export const useEnvStore = create<EnvStore>((set, get) => ({
             views: model.views
         }));
 
-        model.physicalPlaces.forEach((place: PhysicalPlace) => drawPlace(get().mapInstance, place.id, place.coordinates));
+        let features: string[] = []
+        model.physicalPlaces.forEach((place: PhysicalPlace) => {
+            drawPlace(get().mapInstance, place.id, place.coordinates);
+            features.push(place.id)
+        });
         model.edges.forEach((edge: Edge) => {
             const sourceFeature = getFeature(get().mapInstance, edge.source);
             const targetFeature = getFeature(get().mapInstance, edge.target);
             if (sourceFeature && targetFeature)
                 drawEdge(get().mapInstance, sourceFeature, targetFeature, edge.id);
         });
+        fitFeaturesOnMap(get().mapInstance, features);
     },
 
     clearModel: () => {

@@ -1,9 +1,6 @@
 import { useEnvStore } from '../envStore';
 
 const Header = () => {
-  const isEditable = useEnvStore((state) => state.isEditable);
-  const setEditable = useEnvStore((state) => state.setEditable);
-  const setActiveTool = useEnvStore((state) => state.setActiveTool);
   const clearModel = useEnvStore((state) => state.clearModel);
   const setModel = useEnvStore((state) => state.setModel);
 
@@ -32,7 +29,11 @@ const Header = () => {
   const handleExport = () => {
     const model = {
       physicalPlaces: useEnvStore.getState().physicalPlaces,
-      edges: useEnvStore.getState().edges,
+      edges: useEnvStore.getState().edges.map((edge) => {
+        edge.name = useEnvStore.getState().physicalPlaces.find(place => place.id === edge.source)?.name + '>' +
+          useEnvStore.getState().physicalPlaces.find(place => place.id === edge.target)?.name;
+        return edge;
+      }),
       logicalPlaces: useEnvStore.getState().logicalPlaces,
       views: useEnvStore.getState().views,
     };
@@ -43,11 +44,6 @@ const Header = () => {
     a.download = 'model.json';
     a.click();
     URL.revokeObjectURL(url);
-  };
-
-  const toggleEditable = () => {
-    setEditable(!isEditable);
-    setActiveTool('hand');
   };
 
   return (
@@ -65,9 +61,6 @@ const Header = () => {
             clearModel();
         }}>
           🗑️
-        </button>
-        <button className="btn btn-outline-light btn-sm" onClick={toggleEditable}>
-          {isEditable ? '🔓' : '🔒'}
         </button>
       </div>
     </nav>

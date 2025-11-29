@@ -184,7 +184,7 @@ export function fitFeaturesOnMap(map: Map, featureIds: string[]) {
         map.getView().fit(combinedExtent, {
             padding: [200, 200, 200, 200],
             duration: 500,
-            maxZoom: 16,
+            maxZoom: 20,
         });
     }
 }
@@ -269,10 +269,11 @@ export function enablePlaceDrawing(map: Map) {
         };
 
         // TODO: fix this
-        if (useEnvStore.getState().physicalPlaces.some(p => polygonsOverlap(p.coordinates, place.coordinates))) {
-            alert(`Place overlaps with existing place.`);
-            setTimeout(() => removeFeature(map, uid), 0);
-        } else useEnvStore.getState().addPlace(place);
+        // if (useEnvStore.getState().physicalPlaces.some(p => polygonsOverlap(p.coordinates, place.coordinates))) {
+        //     alert(`Place overlaps with existing place.`);
+        //     setTimeout(() => removeFeature(map, uid), 0);
+        // } else useEnvStore.getState().addPlace(place);
+        useEnvStore.getState().addPlace(place);
     });
 }
 

@@ -59,7 +59,7 @@ const PhysicalAttributes = ({ elementId, type, initialAttributes }: {
   };
 
   const handleValueChange = (key: string, value: string) => {
-    if (value.trim() === '') return;
+    // if (value.trim() === '') return;
     const updated = { ...attributes, [key]: value };
     updateStore(updated);
   };
@@ -89,7 +89,7 @@ const PhysicalAttributes = ({ elementId, type, initialAttributes }: {
               value={value}
               onChange={(e) => handleValueChange(key, e.target.value)}
               onBlur={(e) => handleValueChange(key, e.target.value)}
-              placeholder="Attribute Value"
+              placeholder={isEditable ? "Attribute Value" : "null"}
               disabled={!isEditable}
               spellCheck={false}
             />
