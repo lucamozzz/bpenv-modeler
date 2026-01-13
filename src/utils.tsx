@@ -12,10 +12,12 @@ import { click } from 'ol/events/condition';
 
 import { PhysicalPlace, Edge } from './envTypes';
 import { useEnvStore } from './envStore';
+import { queryNearbyFeatures, findClosestFeature, osmFeatureToPhysicalPlace } from './osmApi';
 
 let drawInteraction: Draw | null = null;
 let snapInteraction: Snap | null = null;
 let selectInteraction: Select | null = null;
+let osmClickHandler: ((event: any) => void) | null = null;
 
 // Utils
 
@@ -355,7 +357,75 @@ export function drawEdge(map: Map, p1: Feature, p2: Feature, uid: string) {
     getVectorLayer(map)!.getSource()?.addFeatures([line, arrow]);
 }
 
+/**
+ * Enables OSM feature selection via map clicks.
+ * Queries Overpass API for nearby features and imports closest one.
+ */
+export function enableOSMSelection(map: Map) {
+    osmClickHandler = async (event: any) => {
+        // Change cursor to loading
+        const targetElement = map.getTargetElement();
+        if (targetElement) {
+            (targetElement as HTMLElement).style.cursor = 'wait';
+        }
+
+        try {
+            const [lon, lat] = event.coordinate; // Already in [lon, lat] format
+            const result = await queryNearbyFeatures(lat, lon, 30);
+
+            if (!result.success) {
+                alert(result.error);
+                return;
+            }
+
+            if (!result.data || result.data.length === 0) {
+                alert('No features found near this location. Try clicking closer to a feature.');
+                return;
+            }
+
+            const closest = findClosestFeature([lon, lat], result.data);
+            if (!closest) {
+                alert('No valid features found near this location.');
+                return;
+            }
+
+            const place = osmFeatureToPhysicalPlace(closest);
+
+            // Check for duplicates
+            if (useEnvStore.getState().physicalPlaces.some(p => p.id === place.id)) {
+                alert('This feature is already imported.');
+                return;
+            }
+
+            useEnvStore.getState().addPlace(place);
+            drawPlace(map, place.id, place.coordinates);
+
+        } catch (error) {
+            console.error('OSM selection error:', error);
+            alert('An unexpected error occurred while importing the feature.');
+        } finally {
+            const targetElement = map.getTargetElement();
+            if (targetElement) {
+                (targetElement as HTMLElement).style.cursor = 'default';
+            }
+        }
+    };
+
+    map.on('singleclick', osmClickHandler);
+}
+
+/**
+ * Disables OSM feature selection by removing click handler
+ */
+export function disableOSMSelection(map: Map) {
+    if (osmClickHandler) {
+        map.un('singleclick', osmClickHandler);
+        osmClickHandler = null;
+    }
+}
+
 export function disableDrawing(map: Map) {
+    disableOSMSelection(map);
     if (drawInteraction) {
         map.removeInteraction(drawInteraction);
         drawInteraction = null;

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { PhysicalPlace, LogicalPlace, Edge, View } from './envTypes';
-import { clearFeatures, removeFeature, drawPlace, drawEdge, getFeature, enablePlaceDrawing, enableEdgeDrawing, disableDrawing, fitFeaturesOnMap} from './utils';
+import { clearFeatures, removeFeature, drawPlace, drawEdge, getFeature, enablePlaceDrawing, enableEdgeDrawing, enableOSMSelection, disableDrawing, fitFeaturesOnMap} from './utils';
 import Map from 'ol/Map.js';
 
 type EnvStore = {
@@ -10,8 +10,8 @@ type EnvStore = {
     isEditable: boolean;
     setEditable: (editable: boolean) => void;
 
-    activeTool: 'hand' | 'place' | 'edge';
-    setActiveTool: (tool: 'hand' | 'place' | 'edge') => void;
+    activeTool: 'hand' | 'place' | 'edge' | 'select';
+    setActiveTool: (tool: 'hand' | 'place' | 'edge' | 'select') => void;
 
     physicalPlaces: PhysicalPlace[];
     logicalPlaces: LogicalPlace[];
@@ -57,6 +57,8 @@ export const useEnvStore = create<EnvStore>((set, get) => ({
             enablePlaceDrawing(get().mapInstance);
         else if (tool === 'edge')
             enableEdgeDrawing(get().mapInstance);
+        else if (tool === 'select')
+            enableOSMSelection(get().mapInstance);
         set({ activeTool: tool });
     },
 
