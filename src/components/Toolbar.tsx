@@ -1,5 +1,6 @@
 import { FaHandPaper, FaRegCircle, FaArrowRight, FaMousePointer } from 'react-icons/fa';
 import { useEnvStore } from '../envStore';
+import MqttConnectionPanel from './mqtt/MqttConnectionPanel';
 
 const Toolbar = () => {
     const activeTool = useEnvStore((state) => state.activeTool);
@@ -28,6 +29,8 @@ const Toolbar = () => {
             <button className={activeTool === 'place' ? "toolbar-btn" : "toolbar-btn-selected"} onClick={handlePlaceTool}><FaRegCircle /></button>
             <button className={activeTool === 'edge' ? "toolbar-btn" : "toolbar-btn-selected"} onClick={handleEdgeTool}><FaArrowRight /></button>
             <button className={activeTool === 'select' ? "toolbar-btn" : "toolbar-btn-selected"} onClick={handleSelectTool}><FaMousePointer /></button>
+            <div style={{ width: '1px', height: '24px', backgroundColor: '#666', margin: '0 4px' }} />
+            <MqttConnectionPanel />
         </div>
     );
 };

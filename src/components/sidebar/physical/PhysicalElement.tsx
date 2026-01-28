@@ -3,8 +3,10 @@ import { PhysicalPlace, Edge } from '../../../envTypes';
 import { useEnvStore } from '../../../envStore';
 import { BsTrash } from 'react-icons/bs';
 import PhysicalAttributes from './PhysicalAttributes';
+import LightStatusIndicator from './LightStatusIndicator';
 import { highlightFeature, unhighlightFeature, fitFeaturesOnMap } from '../../../utils';
 import { getProviderRegistry } from '../../../services/AttributeProviderRegistry';
+import { useMqtt } from '../../../hooks/useMqtt';
 
 type Props = {
   element: PhysicalPlace | Edge;
@@ -14,9 +16,13 @@ type Props = {
 const PhysicalElement = ({ element, type }: Props) => {
   const [newName, setNewName] = useState(element.name || '');
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  const [mqttSubscribing, setMqttSubscribing] = useState(false);
   const mapInstance = useEnvStore((state) => state.mapInstance);
   const isEditable = useEnvStore((state) => state.isEditable);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { isConnected, isPlaceSubscribed, subscribePlace, unsubscribePlace } = useMqtt();
+  const isSubscribed = type === 'place' && isPlaceSubscribed(element.id);
 
   const updateElement =
     type === 'place'
@@ -103,6 +109,24 @@ const PhysicalElement = ({ element, type }: Props) => {
     }
   };
 
+  const handleMqttSubscription = async () => {
+    if (type !== 'place') return;
+
+    setMqttSubscribing(true);
+    try {
+      if (isSubscribed) {
+        await unsubscribePlace(element.id);
+      } else {
+        await subscribePlace(element.id);
+      }
+    } catch (error) {
+      console.error('MQTT subscription error:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Subscription failed'}`);
+    } finally {
+      setMqttSubscribing(false);
+    }
+  };
+
   return (
     <li
       className="list-group-item bg-dark text-white"
@@ -123,15 +147,27 @@ const PhysicalElement = ({ element, type }: Props) => {
       }}
     >
       <div className="d-flex justify-content-between align-items-center">
-        <input
-          className="form-control form-control-md border-0 bg-transparent text-white p-0 custom-placeholder no-focus-outline"
-          value={newName}
-          placeholder={type === 'place' ? 'Place Name' : 'Edge Name'}
-          onChange={(e) => setNewName(e.target.value)}
-          onBlur={handleNameBlur}
-          disabled={!isEditable}
-          spellCheck={false}
-        />
+        <div className="flex-grow-1">
+          <input
+            className="form-control form-control-md border-0 bg-transparent text-white p-0 custom-placeholder no-focus-outline"
+            value={newName}
+            placeholder={type === 'place' ? 'Place Name' : 'Edge Name'}
+            onChange={(e) => setNewName(e.target.value)}
+            onBlur={handleNameBlur}
+            disabled={!isEditable}
+            spellCheck={false}
+          />
+          <small
+            className="text-muted"
+            style={{ fontSize: '0.7em', cursor: 'pointer' }}
+            title="Click to copy ID"
+            onClick={() => {
+              navigator.clipboard.writeText(element.id);
+            }}
+          >
+            ID: {element.id}
+          </small>
+        </div>
         <div className="btn-group btn-group-sm">
           <button
             className="btn btn-outline-light p-1"
@@ -228,6 +264,21 @@ const PhysicalElement = ({ element, type }: Props) => {
                   {loadingProvider === 'all' ? '⏳ ' : ''}Fetch All
                 </button>
               </li>
+              <li><hr className="dropdown-divider" /></li>
+              <li>
+                <h6 className="dropdown-header">MQTT Sensors:</h6>
+              </li>
+              <li>
+                <button
+                  className={`dropdown-item ${isSubscribed ? 'text-warning' : ''}`}
+                  onClick={handleMqttSubscription}
+                  disabled={!isConnected || mqttSubscribing}
+                  title={!isConnected ? 'Connect to MQTT broker first' : ''}
+                >
+                  {mqttSubscribing ? '...' : isSubscribed ? 'Unsubscribe Light Sensor' : 'Subscribe Light Sensor'}
+                  {!isConnected && ' (not connected)'}
+                </button>
+              </li>
             </ul>
           </div>
           <button
@@ -242,6 +293,8 @@ const PhysicalElement = ({ element, type }: Props) => {
       </div>
 
       <PhysicalAttributes elementId={element.id} type={type} initialAttributes={element.attributes} />
+
+      {type === 'place' && <LightStatusIndicator placeId={element.id} />}
     </li>
   );
 };
