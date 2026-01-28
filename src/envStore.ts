@@ -34,6 +34,8 @@ type EnvStore = {
     updateView: (id: string, updatedView: Partial<View>) => void;
     removeView: (id: string) => void;
 
+    updateMqttAttributes: (placeId: string, mqttData: Record<string, any>) => void;
+
     setModel: (model: {
         physicalPlaces: PhysicalPlace[],
         edges: Edge[],
@@ -141,6 +143,24 @@ export const useEnvStore = create<EnvStore>((set, get) => ({
     removeView: (id) =>
         set((state) => ({
             views: state.views.filter((v) => v.id !== id)
+        })),
+
+    updateMqttAttributes: (placeId, mqttData) =>
+        set((state) => ({
+            physicalPlaces: state.physicalPlaces.map((p) =>
+                p.id === placeId
+                    ? {
+                        ...p,
+                        attributes: {
+                            ...p.attributes,
+                            mqtt: {
+                                ...p.attributes.mqtt,
+                                light: mqttData
+                            }
+                        }
+                    }
+                    : p
+            )
         })),
 
     setModel: (model) => {
