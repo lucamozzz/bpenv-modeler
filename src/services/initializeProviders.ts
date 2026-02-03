@@ -13,9 +13,6 @@ export async function initializeProviders() {
         enableCache: true,
         cacheTTL: 300000, // 5 minutes
         providers: {
-            weather: {
-                userAgent: '(bpenv-modeler, your-email@example.com)',
-            },
             'osm-tags': {
                 searchRadius: 50, // Search within 50 meters by default
             },

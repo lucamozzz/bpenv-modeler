@@ -9,36 +9,36 @@ import {
 import { HttpClient } from '../utils/httpClient';
 import { flattenObject, prefixKeys } from '../utils/attributeHelpers';
 
+/**
+ * Weather Provider using Open-Meteo API
+ * Dynamically fetches all weather attributes without manual mapping
+ */
 export class WeatherAttributeProvider implements IAttributeProvider {
     public readonly metadata: ProviderMetadata = {
         id: 'weather',
-        name: 'Weather Forecast Provider',
-        description: 'Provides weather forecast data from NOAA (US locations only)',
-        version: '1.0.0',
+        name: 'Weather Provider',
+        description: 'Provides current weather data from Open-Meteo (worldwide)',
+        version: '2.0.0',
     };
 
     public readonly schema: AttributeSchema = {
         'weather.*': {
             type: 'object',
-            description: 'Dynamic weather attributes from NOAA API (all fields from response)',
+            description: 'Dynamic weather attributes from Open-Meteo API (worldwide coverage)',
         },
     };
 
     private httpClient: HttpClient;
-    private userAgent: string = '(bpenv-modeler, contact@example.com)';
 
     constructor() {
         this.httpClient = new HttpClient({
-            baseURL: 'https://api.weather.gov',
+            baseURL: 'https://api.open-meteo.com',
             timeout: 10000,
         });
     }
 
-    public async initialize(config: Record<string, any>): Promise<void> {
-        if (config.userAgent) {
-            this.userAgent = config.userAgent;
-        }
-        console.log('Weather provider initialized');
+    public async initialize(_config: Record<string, any>): Promise<void> {
+        console.log('Weather provider initialized (Open-Meteo)');
     }
 
     public canHandle(place: PhysicalPlace): boolean {
@@ -47,7 +47,7 @@ export class WeatherAttributeProvider implements IAttributeProvider {
         }
 
         const [lon, lat] = place.coordinates[0];
-        return lat >= 24 && lat <= 50 && lon >= -125 && lon <= -66;
+        return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
     }
 
     public async fetchAttributes(
@@ -59,36 +59,27 @@ export class WeatherAttributeProvider implements IAttributeProvider {
                 return {
                     success: false,
                     attributes: {},
-                    error: 'Location is outside US bounds',
+                    error: 'Invalid coordinates',
                 };
             }
 
             const [lon, lat] = place.coordinates[0];
 
-            // Step 1: Get grid point
-            const pointsData = await this.httpClient.get<any>(
-                `/points/${lat},${lon}`,
-                { headers: { 'User-Agent': this.userAgent } }
-            );
+            // Fetch current weather with all available parameters
+            const data = await this.httpClient.get<any>('/v1/forecast', {
+                queryParams: {
+                    latitude: lat.toString(),
+                    longitude: lon.toString(),
+                    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m,is_day',
+                    timezone: 'auto',
+                },
+            });
 
-            // Step 2: Get forecast
-            const forecastData = await this.httpClient.get<any>(
-                pointsData.properties.forecast.replace('https://api.weather.gov', ''),
-                { headers: { 'User-Agent': this.userAgent } }
-            );
-
-            // Take the first (current) forecast period and flatten it dynamically
-            const currentPeriod = forecastData.properties.periods[0];
-
-            // Flatten the nested structure
-            const flattenedPeriod = flattenObject(currentPeriod);
-
-            // Add some top-level properties that might be useful
-            flattenedPeriod.updateTime = forecastData.properties.updateTime;
-            flattenedPeriod.elevation = forecastData.properties.elevation?.value || forecastData.properties.elevation;
+            // Flatten entire response dynamically (like OSM provider)
+            const flattenedData = flattenObject(data);
 
             // Prefix all keys with 'weather.'
-            const attributes = prefixKeys(flattenedPeriod, 'weather');
+            const attributes = prefixKeys(flattenedData, 'weather');
 
             return {
                 success: true,
